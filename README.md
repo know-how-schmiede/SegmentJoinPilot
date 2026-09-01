@@ -1,5 +1,9 @@
 <p align="center">
-  <img src="assets/brand/SegmentJoinPilot-readme-banner.png" alt="SegmentJoinPilot – Split. Align. Print.">
+  <img src="images/SegmentJoinPilot-readme-banner.png" alt="SegmentJoinPilot – Split. Align. Print.">
+</p>
+
+<p align="center">
+  <strong>English</strong> | <a href="README-DE.md">Deutsch</a>
 </p>
 
 # SegmentJoinPilot
@@ -64,17 +68,12 @@ These values are starting points, not universal guarantees. Printer calibration,
 ```text
 SegmentJoinPilot/
 ├── README.md
-├── CONTRIBUTING.md
-├── assets/
-│   ├── brand/
-│   └── icons/
-├── docs/
-│   ├── PROJECT_DESCRIPTION_DE.md
-│   ├── CODEX_PROJECT_PLAN.md
-│   ├── REPOSITORY_SETUP.md
-│   └── BRAND_GUIDE.md
-├── src/                         # Added when the Fusion add-in is created
-└── tests/                       # Geometry-independent unit tests
+├── README-DE.md
+├── LICENSE
+├── doku/
+├── fusion_addin/
+├── images/
+└── installer/
 ```
 
 ## Installation
