@@ -1,4 +1,5 @@
 import adsk.core
+import adsk.fusion
 import os
 from ...lib import fusionAddInUtils as futil
 from ... import config
@@ -76,16 +77,123 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     # General logging for debug.
     futil.log(f'{CMD_NAME} Command Created Event')
 
-    args.command.setDialogInitialSize(360, 140)
+    args.command.setDialogInitialSize(420, 260)
     inputs = args.command.commandInputs
+
+    split_group = inputs.addGroupCommandInput('split_group', 'Split')
+    split_inputs = split_group.children
+
+    body_input = split_inputs.addSelectionInput(
+        'solid_body',
+        'Solid body',
+        'Select one solid body to split.',
+    )
+    body_input.addSelectionFilter('SolidBodies')
+    body_input.setSelectionLimits(1, 1)
+
+    plane_input = split_inputs.addSelectionInput(
+        'construction_plane',
+        'Construction plane',
+        'Select one construction plane as the splitting tool.',
+    )
+    plane_input.addSelectionFilter('ConstructionPlanes')
+    plane_input.setSelectionLimits(1, 1)
+
     inputs.addTextBoxCommandInput(
-        'menu_test_status',
+        'step_scope',
         '',
-        'The SegmentJoinPilot menu command is registered successfully.',
+        f'Version {__version__} validates the selections only. No geometry will be changed.',
         2,
         True,
     )
+    inputs.addTextBoxCommandInput(
+        'intersection_status',
+        'Validation',
+        'Select a solid body and a construction plane.',
+        2,
+        True,
+    )
+
+    futil.add_handler(args.command.execute, command_execute, local_handlers=local_handlers)
+    futil.add_handler(args.command.inputChanged, command_input_changed, local_handlers=local_handlers)
+    futil.add_handler(args.command.validateInputs, command_validate_inputs, local_handlers=local_handlers)
     futil.add_handler(args.command.destroy, command_destroy, local_handlers=local_handlers)
+
+
+def command_validate_inputs(args: adsk.core.ValidateInputsEventArgs):
+    inputs = args.inputs
+    args.areInputsValid = _selections_intersect(inputs)
+
+
+def command_input_changed(args: adsk.core.InputChangedEventArgs):
+    if args.input.id not in ('solid_body', 'construction_plane'):
+        return
+
+    status_input = args.inputs.itemById('intersection_status')
+    body_input = args.inputs.itemById('solid_body')
+    plane_input = args.inputs.itemById('construction_plane')
+
+    if body_input.selectionCount != 1 or plane_input.selectionCount != 1:
+        status_input.text = 'Select a solid body and a construction plane.'
+    elif _selections_intersect(args.inputs):
+        status_input.text = 'Valid: the construction plane intersects the solid body.'
+    else:
+        status_input.text = 'Invalid: the construction plane does not intersect the solid body.'
+
+
+def _selections_intersect(inputs: adsk.core.CommandInputs) -> bool:
+    body_input = inputs.itemById('solid_body')
+    plane_input = inputs.itemById('construction_plane')
+    if (
+        body_input is None
+        or body_input.selectionCount != 1
+        or plane_input is None
+        or plane_input.selectionCount != 1
+    ):
+        return False
+
+    try:
+        body = adsk.fusion.BRepBody.cast(body_input.selection(0).entity)
+        construction_plane = adsk.fusion.ConstructionPlane.cast(
+            plane_input.selection(0).entity
+        )
+        if body is None or not body.isSolid or construction_plane is None:
+            return False
+
+        temporary_brep_manager = adsk.fusion.TemporaryBRepManager.get()
+        intersection = temporary_brep_manager.planeIntersection(
+            body,
+            construction_plane.geometry,
+        )
+        return intersection is not None and intersection.edges.count > 0
+    except:
+        futil.handle_error('plane intersection validation')
+        return False
+
+
+def command_execute(args: adsk.core.CommandEventArgs):
+    inputs = args.command.commandInputs
+    if not _selections_intersect(inputs):
+        ui.messageBox(
+            'The construction plane does not intersect the selected solid body.\n\n'
+            'Choose a plane that passes through the body and try again.',
+            CMD_NAME,
+        )
+        return
+
+    body = inputs.itemById('solid_body').selection(0).entity
+    plane = inputs.itemById('construction_plane').selection(0).entity
+
+    body_name = getattr(body, 'name', 'Selected body')
+    plane_name = getattr(plane, 'name', 'Selected plane')
+    ui.messageBox(
+        f'Selection test completed successfully.\n\n'
+        f'Solid body: {body_name}\n'
+        f'Construction plane: {plane_name}\n\n'
+        'No geometry was changed.',
+        CMD_NAME,
+    )
+
 
 # This event handler is called when the command terminates.
 def command_destroy(args: adsk.core.CommandEventArgs):

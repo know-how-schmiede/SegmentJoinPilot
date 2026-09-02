@@ -60,3 +60,67 @@ Fusion test:
 7. Stop the add-in and verify that the menu entry disappears.
 
 Test result: Passed in Fusion and confirmed by the project owner after replacing the inherited manifest icon and invalidating the cached command resources.
+
+## Version 0.3.0
+
+### Step 3 - Select a solid body and construction plane
+
+Implemented:
+
+- Updated `version.py` and `SegmentJoinPilot.manifest` to version `0.3.0` as instructed by the project owner.
+- Replaced the menu registration status content with an English `Split` input group.
+- Added a required single-selection input filtered to solid BRep bodies.
+- Added a required single-selection input filtered to construction planes.
+- Added validation that enables confirmation only when both selections contain exactly one entity.
+- Added a completion message that reports both selected entity names and explicitly confirms that no geometry was changed.
+
+Scope limitation:
+
+- The selected body is not split in this step.
+- No intersection test, sketch selection, connector, socket, or preview functionality is implemented.
+
+Fusion test:
+
+1. Stop and restart `SegmentJoinPilot` in the `Utilities > Add-Ins` dialog.
+2. Open or create a Design document containing one solid body and one construction plane.
+3. Run `SegmentJoinPilot 0.3.0` from `Solid > Create`.
+4. Verify that the dialog title and menu entry show version `0.3.0`.
+5. Verify that `Solid body` accepts a solid body but does not accept a face, sketch, or mesh body.
+6. Verify that `Construction plane` accepts a construction plane but does not accept a planar face.
+7. Verify that the OK button is disabled until both required selections are present.
+8. Confirm the dialog and verify that the completion message contains both selected names.
+9. Verify that no geometry or timeline entry was created or changed.
+10. Cancel a second invocation and verify that the model remains unchanged.
+
+Test result: Passed by project-owner approval to continue with the next step.
+
+## Version 0.3.1
+
+### Step 4 - Validate the body-plane intersection
+
+Implemented:
+
+- Updated `version.py` and `SegmentJoinPilot.manifest` to version `0.3.1` as instructed by the project owner.
+- Added a non-destructive intersection check using Fusion's `TemporaryBRepManager.planeIntersection` API.
+- Added an English validation status that updates when the body or construction-plane selection changes.
+- Disabled confirmation when the selected construction plane does not produce intersection curves with the solid body.
+- Added a defensive execute-time intersection check and a clear English error message.
+
+Scope limitation:
+
+- The intersection test checks for section curves; the actual split and verification of exactly two result solids are not implemented yet.
+- No document geometry or timeline item is created or changed.
+
+Fusion test:
+
+1. Stop and restart `SegmentJoinPilot` in the `Utilities > Add-Ins` dialog.
+2. Open a Design document containing a solid body.
+3. Create one construction plane that passes through the body and another plane outside it.
+4. Run `SegmentJoinPilot 0.3.1` from `Solid > Create`.
+5. Select the body and the outside plane; verify that the validation reads `Invalid` and OK remains disabled.
+6. Replace the plane selection with the intersecting plane; verify that the validation reads `Valid` and OK becomes enabled.
+7. Confirm the dialog and verify that the success message shows both selected names.
+8. Verify that the body, feature count, and timeline remain unchanged.
+9. Repeat with a curved solid such as a cylinder or sphere and verify both a passing and a non-passing plane.
+
+Test result: Pending manual test in Fusion.
