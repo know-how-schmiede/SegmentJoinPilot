@@ -102,7 +102,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     inputs.addTextBoxCommandInput(
         'step_scope',
         '',
-        f'Version {__version__} validates the selections only. No geometry will be changed.',
+        f'Version {__version__} splits the selected body into exactly two solid bodies.',
         2,
         True,
     )
@@ -181,18 +181,55 @@ def command_execute(args: adsk.core.CommandEventArgs):
         )
         return
 
-    body = inputs.itemById('solid_body').selection(0).entity
-    plane = inputs.itemById('construction_plane').selection(0).entity
-
-    body_name = getattr(body, 'name', 'Selected body')
-    plane_name = getattr(plane, 'name', 'Selected plane')
-    ui.messageBox(
-        f'Selection test completed successfully.\n\n'
-        f'Solid body: {body_name}\n'
-        f'Construction plane: {plane_name}\n\n'
-        'No geometry was changed.',
-        CMD_NAME,
+    body = adsk.fusion.BRepBody.cast(
+        inputs.itemById('solid_body').selection(0).entity
     )
+    plane = adsk.fusion.ConstructionPlane.cast(
+        inputs.itemById('construction_plane').selection(0).entity
+    )
+
+    split_feature = None
+    try:
+        split_features = body.parentComponent.features.splitBodyFeatures
+        split_input = split_features.createInput(body, plane, True)
+        if split_input is None:
+            raise RuntimeError('Fusion could not create the split-body input.')
+
+        split_feature = split_features.add(split_input)
+        if split_feature is None:
+            raise RuntimeError('Fusion could not create the split-body feature.')
+
+        result_bodies = [
+            split_feature.bodies.item(index)
+            for index in range(split_feature.bodies.count)
+            if split_feature.bodies.item(index).isSolid
+        ]
+        if len(result_bodies) != 2:
+            result_count = len(result_bodies)
+            split_feature.deleteMe()
+            split_feature = None
+            raise RuntimeError(
+                f'The split produced {result_count} solid bodies instead of exactly two.'
+            )
+
+        body_name = getattr(body, 'name', 'Selected body')
+        plane_name = getattr(plane, 'name', 'Selected plane')
+        ui.messageBox(
+            f'Split completed successfully.\n\n'
+            f'Original body: {body_name}\n'
+            f'Construction plane: {plane_name}\n'
+            f'Result: {len(result_bodies)} solid bodies.',
+            CMD_NAME,
+        )
+    except Exception as error:
+        if split_feature is not None and split_feature.isValid:
+            split_feature.deleteMe()
+        futil.log(f'Split body failed: {error}', adsk.core.LogLevels.ErrorLogLevel)
+        ui.messageBox(
+            f'The body could not be split.\n\n{error}\n\n'
+            'No partial split feature was retained.',
+            CMD_NAME,
+        )
 
 
 # This event handler is called when the command terminates.

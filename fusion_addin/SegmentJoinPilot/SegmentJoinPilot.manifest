@@ -5,7 +5,7 @@
 	"description":	{
 		"":	"add-in for splitting large 3D models into printable segments and creating matching alignment connectors at user-defined positions"
 	},
-	"version":	"0.3.1",
+	"version":	"0.3.2",
 	"runOnStartup":	false,
 	"supportedOS":	"windows|mac",
 	"editEnabled":	true,

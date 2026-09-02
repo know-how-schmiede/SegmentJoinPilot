@@ -123,4 +123,37 @@ Fusion test:
 8. Verify that the body, feature count, and timeline remain unchanged.
 9. Repeat with a curved solid such as a cylinder or sphere and verify both a passing and a non-passing plane.
 
+Test result: Passed in Fusion and confirmed by the project owner.
+
+## Version 0.3.2
+
+### Step 5 - Split the selected body into two solids
+
+Implemented:
+
+- Updated `version.py` and `SegmentJoinPilot.manifest` to version `0.3.2` as instructed by the project owner.
+- Created a native Fusion `SplitBodyFeature` from the selected solid body and construction plane.
+- Enabled splitting-tool extension for the infinite construction-plane split.
+- Read the result bodies from the created feature rather than relying on component body-list positions.
+- Required exactly two solid result bodies for a successful operation.
+- Added rollback of the newly created split feature if creation or result validation fails.
+- Added clear English success and error messages.
+
+Scope limitation:
+
+- Result bodies and the split feature retain Fusion's default names in this step.
+- No section-face detection, timeline grouping, connector, socket, or preview functionality is implemented.
+
+Fusion test:
+
+1. Stop and restart `SegmentJoinPilot` in the `Utilities > Add-Ins` dialog.
+2. Create a new Design document with one simple solid box and a construction plane passing through its center.
+3. Run `SegmentJoinPilot 0.3.2` from `Solid > Create` and select the box and plane.
+4. Confirm the dialog and verify that the success message reports exactly two solid bodies.
+5. Verify in the Browser that the original body was split into two solid bodies.
+6. Verify that exactly one Split Body feature was added to the timeline.
+7. Undo once and verify that the original single body is restored.
+8. Repeat with an angled plane that passes through the box.
+9. Verify that an outside plane is still rejected before execution.
+
 Test result: Pending manual test in Fusion.

@@ -2,9 +2,20 @@
 
 Diese Datei enthält die kompakte chronologische Übersicht aller freigegebenen und begonnenen Projektversionen. Ausführliche Implementierungsdetails, Testanleitungen und Testergebnisse werden weiterhin im [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) geführt.
 
-## 2026-09-02 — Version 0.3.1
+## 2026-09-02 — Version 0.3.2
 
 Status: Implementiert, Fusion-Test ausstehend.
+
+- Manifest und `version.py` auf `0.3.2` aktualisiert.
+- Ausgewählten Solid-Körper mit der gewählten Konstruktionsebene geteilt.
+- Ergebnis direkt über das erzeugte Split-Feature ermittelt.
+- Genau zwei Solid-Ergebniskörper als Erfolgskriterium festgelegt.
+- Automatisches Entfernen eines unvollständigen oder unerwarteten Split-Features ergänzt.
+- Englische Erfolgs- und Fehlermeldungen hinzugefügt.
+
+## 2026-09-02 — Version 0.3.1
+
+Status: In Fusion getestet und freigegeben.
 
 - Manifest und `version.py` auf `0.3.1` aktualisiert.
 - Zerstörungsfreie Prüfung ergänzt, ob die gewählte Konstruktionsebene den Solid-Körper schneidet.
