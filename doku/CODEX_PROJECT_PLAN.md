@@ -6,6 +6,18 @@ Implementiere auf Basis eines von Fusion erzeugten leeren Python-Add-ins das Pro
 
 Diese Datei beschreibt den gewünschten Zielzustand. Vor Änderungen muss Codex die tatsächlich erzeugte Add-in-Struktur, vorhandene Dateien und die verwendete Fusion-API-Version untersuchen. Bestehende Autodesk-Start-/Stop-Logik soll erhalten bleiben und schrittweise erweitert werden.
 
+## Verbindliche Projektvorgaben
+
+- Das Add-in und alle sichtbaren Oberflächentexte werden zunächst in Englisch entwickelt.
+- Die Architektur muss eine spätere Lokalisierung nach Deutsch, Französisch, Spanisch und Polnisch ermöglichen. Sichtbare Texte dürfen deshalb nicht unnötig über die Programmlogik verteilt werden.
+- Der Befehl wird im Fusion-Arbeitsbereich `Solid` im Menü beziehungsweise Toolbar-Panel `Create` angezeigt.
+- Für das Add-in werden eigenständige, zum Funktionsumfang und zur Marke passende Icons in allen von Fusion benötigten Größen erstellt und eingebunden.
+- Die Versionsnummer wird zentral in `version.py` gepflegt und sowohl in der Titelzeile des Dialogfensters als auch im Menüeintrag angezeigt.
+- Die Versionsangabe der `*.manifest`-Datei muss bei jeder freigegebenen Versionsänderung mit `version.py` übereinstimmen.
+- Eine neue Versionsnummer wird ausschließlich nach ausdrücklicher Vorgabe des Projektverantwortlichen begonnen. Codex darf die Versionsnummer nicht selbstständig erhöhen.
+- Jede funktionale Änderung wird als kleiner, einzeln prüfbarer Schritt umgesetzt. Nach jedem Schritt folgt ein Test in Fusion und die Bestätigung des Projektverantwortlichen, bevor der nächste Schritt begonnen wird.
+- Alle umgesetzten Änderungen, Fusion-Testschritte, Testergebnisse und bekannten Einschränkungen werden im Ordner `doku/` dokumentiert.
+
 ## MVP-Abnahmekriterien
 
 Der MVP gilt als abgeschlossen, wenn:
@@ -39,6 +51,7 @@ Die genauen Modulnamen dürfen an das erzeugte Fusion-Gerüst angepasst werden.
 ```text
 src/
 ├── SegmentJoinPilot.py             # Add-in entry points: run(context), stop(context)
+├── version.py                      # Zentrale, vom Projektverantwortlichen freigegebene Version
 ├── commands/
 │   └── create_segment_join/
 │       ├── entry.py                # Command registration and event handlers
@@ -185,16 +198,23 @@ Empfohlene Attribute:
 
 ## Entwicklungsphasen
 
+Die folgenden Phasen sind eine Reihenfolge, keine zusammenhängenden Implementierungsblöcke. Jeder Aufzählungspunkt ist als eigener Arbeitsschritt zu behandeln: implementieren, außerhalb von Fusion prüfen, in `doku/` dokumentieren, in Fusion testen und erst nach Bestätigung fortfahren.
+
 ### Phase 0 – Bestand aufnehmen
 
 - Leeres Fusion-Add-in untersuchen
 - Manifest, Entry Points, Command-Framework und Ressourcenpfade dokumentieren
+- Aktuelle Versionsnummer in Add-in und `*.manifest` erfassen, ohne sie zu ändern
 - Add-in unverändert starten und stoppen
 - Minimalen Smoke-Test festhalten
 
 ### Phase 1 – Command und Auswahl
 
-- Toolbar-Befehl mit gelieferten Icons registrieren
+- Passende Add-in-Icons entwerfen, in den erforderlichen Fusion-Größen exportieren und unter `resources/` ablegen
+- Toolbar-Befehl im Arbeitsbereich `Solid` unter `Create` mit den neuen Icons registrieren
+- `version.py` als einzige Versionsquelle für den Python-Code einführen
+- Version in der englischen Dialog-Titelzeile und im englischen Menüeintrag anzeigen
+- Konsistenz zwischen `version.py` und der Versionsangabe in der `*.manifest`-Datei prüfen und dokumentieren
 - Körper- und Ebenenauswahl implementieren
 - Eingaben validieren und verständliche Fehlermeldungen anzeigen
 
@@ -229,7 +249,10 @@ Empfohlene Attribute:
 
 - Testmodelle und reproduzierbare manuelle Tests ergänzen
 - Installation dokumentieren
-- Versionsnummern, Changelog und Release-Paket vorbereiten
+- Englische Oberflächentexte auf Vollständigkeit und zentrale Ablage prüfen
+- Lokalisierungsstruktur für die späteren Sprachen Deutsch, Französisch, Spanisch und Polnisch vorbereiten, ohne diese Übersetzungen vorzeitig umzusetzen
+- Changelog und Release-Paket vorbereiten
+- Eine neue, vom Projektverantwortlichen vorgegebene Versionsnummer gleichzeitig in `version.py` und `*.manifest` eintragen und die Konsistenz testen
 
 ### Phase 7 – Mehrfachschnitte
 
@@ -270,9 +293,11 @@ Für jede Preset-Stufe soll ein kleiner Kalibrierkörper gedruckt werden. Ergebn
 
 - Zuerst vorhandene Projektanweisungen und Add-in-Dateien lesen.
 - Kleine, überprüfbare Änderungen vornehmen.
-- Nach jeder Phase Syntax- beziehungsweise Importtests ausführen, soweit außerhalb von Fusion möglich.
+- Immer nur einen Arbeitsschritt umsetzen; nach jedem Schritt Syntax- beziehungsweise Importtests ausführen, soweit außerhalb von Fusion möglich.
+- Nach jedem Arbeitsschritt einen konkreten Fusion-Test beschreiben und auf das Testergebnis beziehungsweise die Freigabe des Projektverantwortlichen warten, bevor der nächste Schritt umgesetzt wird.
 - Keine API-Methoden erfinden; unsichere Fusion-API-Aufrufe anhand der installierten Dokumentation oder offizieller Autodesk-Dokumentation prüfen.
 - Keine Benutzerdateien oder vorhandenen Änderungen überschreiben.
 - Noch nicht implementierte Funktionen im Dialog nicht als funktionsfähig darstellen.
-- Jede Phase mit geändertem Verhalten, Tests und bekannten Einschränkungen dokumentieren.
-
+- Alle sichtbaren Texte der ersten Version auf Englisch verfassen und für die spätere Lokalisierung zentral verwalten.
+- Keine Versionsnummer ohne ausdrückliche Anweisung des Projektverantwortlichen beginnen oder erhöhen.
+- Jeden Arbeitsschritt mit geändertem Verhalten, Fusion-Testanleitung, Testergebnis und bekannten Einschränkungen unter `doku/` dokumentieren.
