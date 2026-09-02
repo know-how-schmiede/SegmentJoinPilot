@@ -85,6 +85,12 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     args.command.setDialogInitialSize(420, 260)
     inputs = args.command.commandInputs
 
+    mode_input = inputs.addDropDownCommandInput(
+        'operation_mode', 'Mode', adsk.core.DropDownStyles.TextListDropDownStyle
+    )
+    mode_input.listItems.add('Create split operation', True, '')
+    mode_input.listItems.add('Inspect existing position sketch', False, '')
+
     split_group = inputs.addGroupCommandInput('split_group', 'Split')
     split_inputs = split_group.children
 
@@ -107,7 +113,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     inputs.addTextBoxCommandInput(
         'step_scope',
         '',
-        f'Version {__version__} creates an empty position sketch after splitting.',
+        f'Version {__version__} creates a split or inspects standalone sketch points.',
         2,
         True,
     )
@@ -119,6 +125,19 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
         True,
     )
 
+    positions_group = inputs.addGroupCommandInput('positions_group', 'Positions')
+    positions_group.isVisible = False
+    positions_inputs = positions_group.children
+    sketch_input = positions_inputs.addSelectionInput(
+        'position_sketch', 'Position sketch', 'Select an SJP sketch or one of its points.'
+    )
+    sketch_input.addSelectionFilter('Sketches')
+    sketch_input.addSelectionFilter('SketchPoints')
+    sketch_input.setSelectionLimits(0, 1)
+    positions_inputs.addTextBoxCommandInput(
+        'point_status', 'Detected points', 'Select a position sketch.', 2, True
+    )
+
     futil.add_handler(args.command.execute, command_execute, local_handlers=local_handlers)
     futil.add_handler(args.command.inputChanged, command_input_changed, local_handlers=local_handlers)
     futil.add_handler(args.command.validateInputs, command_validate_inputs, local_handlers=local_handlers)
@@ -126,11 +145,44 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
 
 
 def command_validate_inputs(args: adsk.core.ValidateInputsEventArgs):
-    inputs = args.inputs
-    args.areInputsValid = _selections_intersect(inputs)
+    command = adsk.core.Command.cast(args.firingEvent.sender)
+    inputs = command.commandInputs if command is not None else args.inputs
+    if _is_inspect_mode(inputs):
+        sketch_input = inputs.itemById('position_sketch')
+        args.areInputsValid = (
+            sketch_input is not None
+            and sketch_input.selectionCount == 1
+            and bool(_standalone_sketch_points(_selected_position_sketch(sketch_input)))
+        )
+    else:
+        args.areInputsValid = _selections_intersect(inputs)
 
 
 def command_input_changed(args: adsk.core.InputChangedEventArgs):
+    if args.input.id == 'operation_mode':
+        root_inputs = args.input.parentCommand.commandInputs
+        inspect_mode = _is_inspect_mode(root_inputs)
+        root_inputs.itemById('split_group').isVisible = not inspect_mode
+        root_inputs.itemById('positions_group').isVisible = inspect_mode
+        root_inputs.itemById('solid_body').setSelectionLimits(
+            0 if inspect_mode else 1, 1
+        )
+        root_inputs.itemById('construction_plane').setSelectionLimits(
+            0 if inspect_mode else 1, 1
+        )
+        root_inputs.itemById('position_sketch').setSelectionLimits(
+            1 if inspect_mode else 0, 1
+        )
+        return
+
+    if args.input.id == 'position_sketch':
+        point_status = args.inputs.itemById('point_status')
+        point_count = 0
+        if args.input.selectionCount == 1:
+            point_count = len(_standalone_sketch_points(_selected_position_sketch(args.input)))
+        point_status.text = f'{point_count} standalone sketch point(s) detected.'
+        return
+
     if args.input.id not in ('solid_body', 'construction_plane'):
         return
 
@@ -144,6 +196,66 @@ def command_input_changed(args: adsk.core.InputChangedEventArgs):
         status_input.text = 'Valid: the construction plane intersects the solid body.'
     else:
         status_input.text = 'Invalid: the construction plane does not intersect the solid body.'
+
+
+def _is_inspect_mode(inputs: adsk.core.CommandInputs) -> bool:
+    mode_input = inputs.itemById('operation_mode')
+    return (
+        mode_input is not None
+        and mode_input.selectedItem is not None
+        and mode_input.selectedItem.name == 'Inspect existing position sketch'
+    )
+
+
+def _standalone_sketch_points(sketch_entity):
+    sketch = adsk.fusion.Sketch.cast(sketch_entity)
+    if sketch is None:
+        return []
+
+    points = []
+    origin_token = sketch.originPoint.entityToken
+    for index in range(sketch.sketchPoints.count):
+        point = sketch.sketchPoints.item(index)
+        if point.entityToken == origin_token or point.isReference:
+            continue
+        connected_entities = point.connectedEntities
+        if connected_entities is None or len(connected_entities) == 0:
+            points.append(point)
+    return points
+
+
+def _selected_position_sketch(sketch_input):
+    if sketch_input is None or sketch_input.selectionCount != 1:
+        return None
+    entity = sketch_input.selection(0).entity
+    sketch = adsk.fusion.Sketch.cast(entity)
+    if sketch is not None:
+        return sketch
+    sketch_point = adsk.fusion.SketchPoint.cast(entity)
+    return sketch_point.parentSketch if sketch_point is not None else None
+
+
+def _inspect_position_sketch(inputs: adsk.core.CommandInputs):
+    sketch_input = inputs.itemById('position_sketch')
+    if sketch_input is None or sketch_input.selectionCount != 1:
+        ui.messageBox('Select one position sketch.', CMD_NAME)
+        return
+
+    sketch = _selected_position_sketch(sketch_input)
+    points = _standalone_sketch_points(sketch)
+    if not points:
+        ui.messageBox('No standalone sketch points were found.', CMD_NAME)
+        return
+
+    point_lines = []
+    for index, point in enumerate(points, start=1):
+        position = point.geometry
+        point_lines.append(f'Point {index}: X={position.x:.4f} cm, Y={position.y:.4f} cm')
+    ui.messageBox(
+        f'Position sketch: {sketch.name}\n'
+        f'Detected standalone points: {len(points)}\n\n' + '\n'.join(point_lines),
+        CMD_NAME,
+    )
 
 
 def _selections_intersect(inputs: adsk.core.CommandInputs) -> bool:
@@ -178,6 +290,10 @@ def _selections_intersect(inputs: adsk.core.CommandInputs) -> bool:
 
 def command_execute(args: adsk.core.CommandEventArgs):
     inputs = args.command.commandInputs
+    if _is_inspect_mode(inputs):
+        _inspect_position_sketch(inputs)
+        return
+
     if not _selections_intersect(inputs):
         ui.messageBox(
             'The construction plane does not intersect the selected solid body.\n\n'
@@ -240,6 +356,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
         if position_sketch is None:
             raise RuntimeError('Fusion could not create the position sketch.')
         position_sketch.name = f'SJP_PositionSketch_{operation_suffix}'
+        position_sketch.isLightBulbOn = True
 
         split_timeline_object = split_feature.timelineObject
         sketch_timeline_object = position_sketch.timelineObject

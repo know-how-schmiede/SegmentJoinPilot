@@ -2,6 +2,21 @@
 
 Diese Datei enthält die kompakte chronologische Übersicht aller freigegebenen und begonnenen Projektversionen. Ausführliche Implementierungsdetails, Testanleitungen und Testergebnisse werden weiterhin im [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) geführt.
 
+## 2026-09-02 — Version 0.3.7
+
+Status: Implementiert, Fusion-Test ausstehend.
+
+- Zwei Betriebsmodi für neue Split-Operationen und die Prüfung vorhandener Positionsskizzen ergänzt.
+- Auswahlgrenzen beim Moduswechsel dynamisch angepasst, damit ausgeblendete Pflichtfelder die OK-Schaltfläche nicht blockieren.
+- Eigenständige, nicht referenzierte Skizzenpunkte erfasst.
+- Skizzenursprung und mit Kurven verbundene Punkte ausgeschlossen.
+- Fusion-Rückgabewert `None` für die Verbindungen eigenständiger Punkte berücksichtigt.
+- Auswahl des vollständigen Sketch-Objekts über den Fusion-Browser dokumentiert.
+- Direkte Modellauswahl eines sichtbaren Skizzenpunkts ergänzt und dessen übergeordnete Positionsskizze automatisch ermittelt.
+- Sichtbarkeit neu erzeugter Positionsskizzen ausdrücklich aktiviert.
+- Punktanzahl und lokale X/Y-Koordinaten ausgegeben.
+- Keine Geometrieänderung im Prüfmodus.
+
 ## 2026-09-02 — Version 0.3.6
 
 Status: In Fusion getestet und freigegeben.

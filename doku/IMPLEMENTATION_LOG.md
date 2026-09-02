@@ -288,3 +288,37 @@ Fusion test:
 9. Undo once and verify that the group, sketch, split, and result segments are removed together.
 
 Test result: Passed in Fusion and confirmed by the project owner after replacing the cyclic sketch-selection requirement with automatic post-split sketch creation.
+
+## Version 0.3.7
+
+### Step 10 - Inspect standalone position points
+
+Implemented:
+
+- Updated `version.py` and `SegmentJoinPilot.manifest` to version `0.3.7`.
+- Added `Create split operation` and `Inspect existing position sketch` modes.
+- Added dynamic visibility for the Split and Positions inputs.
+- Fixed a Fusion validation issue found during testing: hidden selection inputs now switch their minimum selection limit between zero and one with the active mode, so they no longer disable OK while hidden.
+- Added selection of one existing Fusion sketch in inspection mode.
+- Detected standalone, non-reference sketch points while ignoring the sketch origin and points connected to curves.
+- Fixed a Fusion runtime variation found during testing: a standalone point can return `None` instead of an empty collection from `connectedEntities`; both representations are now accepted.
+- Documented Browser selection as the expected way to select the complete sketch object because clicking visible point geometry targets a sketch point rather than the sketch.
+- Improved canvas selection after user feedback: the position input now accepts either the complete sketch or any sketch point and resolves a selected point through its `parentSketch`.
+- Explicitly enabled the light bulb of newly created position sketches so their standalone points remain available in the canvas.
+- Reported the point count and sketch-space X/Y coordinates without changing geometry.
+
+Scope limitation:
+
+- Inspection does not create connectors or modify the selected sketch.
+- Position points are not yet persisted as operation attributes.
+
+Fusion test:
+
+1. Create an operation, edit `SJP_PositionSketch_001`, and add two standalone points.
+2. Run SegmentJoinPilot and select `Inspect existing position sketch`.
+3. Select the complete position sketch in the Fusion Browser and verify that two points are detected.
+4. Confirm and verify both sketch-space coordinate pairs in the message.
+5. Add a line and verify its endpoints are not counted as standalone positions.
+6. Verify that inspection creates no geometry or timeline item.
+
+Test result: Pending manual test in Fusion.
