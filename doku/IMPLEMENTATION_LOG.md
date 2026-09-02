@@ -189,4 +189,36 @@ Fusion test:
 7. Repeat with an angled plane and verify that both segments and their section faces are still identified.
 8. Verify that the operation creates only the split feature and two result bodies, with no additional geometry.
 
+Test result: Passed in Fusion and confirmed by the project owner.
+
+## Version 0.3.4
+
+### Step 7 - Apply stable operation and segment names
+
+Implemented:
+
+- Updated `version.py` and `SegmentJoinPilot.manifest` to version `0.3.4` as instructed by the project owner.
+- Added component-local operation numbering based on existing SegmentJoinPilot feature and body names.
+- Named the split feature `SJP_Split_NNN`.
+- Named the negative-side result `SJP_Segment_A_NNN`.
+- Named the positive-side result `SJP_Segment_B_NNN`.
+- Selected the next number as the highest existing SegmentJoinPilot operation number plus one.
+- Added the assigned feature and body names to the English success message.
+- Fixed an `InputChangedEventHandler` error found during the Fusion test: the validation status input now belongs to the same `Split` group input collection as the two selection inputs.
+
+Scope limitation:
+
+- Names are not yet backed by Fusion attributes.
+- No timeline group, connector, socket, or preview functionality is implemented.
+
+Fusion test:
+
+1. Stop and restart `SegmentJoinPilot` in the `Utilities > Add-Ins` dialog.
+2. Split a simple body with `SegmentJoinPilot 0.3.4`.
+3. Verify the timeline feature name is `SJP_Split_001`.
+4. Verify the Browser body names are `SJP_Segment_A_001` and `SJP_Segment_B_001`.
+5. Run a second independent split in the same component.
+6. Verify that the second operation uses suffix `002` without changing the first operation's names.
+7. Undo the second operation and verify that the first operation and its names remain intact.
+
 Test result: Pending manual test in Fusion.

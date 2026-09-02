@@ -1,6 +1,7 @@
 import adsk.core
 import adsk.fusion
 import os
+import re
 from ...lib import fusionAddInUtils as futil
 from ... import config
 from ...version import __version__
@@ -33,6 +34,7 @@ local_handlers = []
 
 # Fusion model geometry uses centimeters internally.
 PLANE_DISTANCE_TOLERANCE_CM = 1e-6
+SJP_NAME_PATTERN = re.compile(r'^SJP_(?:Split|Segment_[AB])_(\d+)$')
 
 
 # Executed when add-in is run.
@@ -105,11 +107,11 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     inputs.addTextBoxCommandInput(
         'step_scope',
         '',
-        f'Version {__version__} splits and identifies segments A and B and their section faces.',
+        f'Version {__version__} splits, identifies, and names segments A and B.',
         2,
         True,
     )
-    inputs.addTextBoxCommandInput(
+    split_inputs.addTextBoxCommandInput(
         'intersection_status',
         'Validation',
         'Select a solid body and a construction plane.',
@@ -193,7 +195,9 @@ def command_execute(args: adsk.core.CommandEventArgs):
 
     split_feature = None
     try:
-        split_features = body.parentComponent.features.splitBodyFeatures
+        component = body.parentComponent
+        original_body_name = body.name
+        split_features = component.features.splitBodyFeatures
         split_input = split_features.createInput(body, plane, True)
         if split_input is None:
             raise RuntimeError('Fusion could not create the split-body input.')
@@ -223,12 +227,18 @@ def command_execute(args: adsk.core.CommandEventArgs):
                 'Fusion created the split, but the new section faces could not be identified.'
             )
 
-        body_name = getattr(body, 'name', 'Selected body')
+        operation_number = _next_operation_number(component)
+        operation_suffix = f'{operation_number:03d}'
+        split_feature.name = f'SJP_Split_{operation_suffix}'
+        segment_a.name = f'SJP_Segment_A_{operation_suffix}'
+        segment_b.name = f'SJP_Segment_B_{operation_suffix}'
+
         plane_name = getattr(plane, 'name', 'Selected plane')
         ui.messageBox(
             f'Split completed successfully.\n\n'
-            f'Original body: {body_name}\n'
+            f'Original body: {original_body_name}\n'
             f'Construction plane: {plane_name}\n'
+            f'Split feature: {split_feature.name}\n'
             f'Segment A: {segment_a.name} (negative plane side)\n'
             f'Segment A section faces: {len(section_faces_a)}\n'
             f'Segment B: {segment_b.name} (positive plane side)\n'
@@ -282,6 +292,23 @@ def _find_section_faces(body: adsk.fusion.BRepBody, split_plane: adsk.core.Plane
             section_faces.append(face)
 
     return section_faces
+
+
+def _next_operation_number(component: adsk.fusion.Component) -> int:
+    used_numbers = []
+
+    for body_index in range(component.bRepBodies.count):
+        match = SJP_NAME_PATTERN.match(component.bRepBodies.item(body_index).name)
+        if match:
+            used_numbers.append(int(match.group(1)))
+
+    split_features = component.features.splitBodyFeatures
+    for feature_index in range(split_features.count):
+        match = SJP_NAME_PATTERN.match(split_features.item(feature_index).name)
+        if match:
+            used_numbers.append(int(match.group(1)))
+
+    return max(used_numbers, default=0) + 1
 
 
 # This event handler is called when the command terminates.

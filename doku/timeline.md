@@ -2,9 +2,21 @@
 
 Diese Datei enthält die kompakte chronologische Übersicht aller freigegebenen und begonnenen Projektversionen. Ausführliche Implementierungsdetails, Testanleitungen und Testergebnisse werden weiterhin im [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) geführt.
 
-## 2026-09-02 — Version 0.3.3
+## 2026-09-02 — Version 0.3.4
 
 Status: Implementiert, Fusion-Test ausstehend.
+
+- Manifest und `version.py` auf `0.3.4` aktualisiert.
+- Component-lokale, fortlaufende Operationsnummer ermittelt.
+- Split-Feature nach dem Schema `SJP_Split_NNN` benannt.
+- Ergebniskörper als `SJP_Segment_A_NNN` und `SJP_Segment_B_NNN` benannt.
+- Kollisionen mit bereits vorhandenen SegmentJoinPilot-Operationen vermieden.
+- Vergebene Namen in die englische Erfolgsmeldung aufgenommen.
+- Fehler im `InputChangedEventHandler` behoben, indem die Validierungsanzeige in dieselbe `Split`-Eingabegruppe wie die Auswahlfelder verschoben wurde.
+
+## 2026-09-02 — Version 0.3.3
+
+Status: In Fusion getestet und freigegeben.
 
 - Manifest und `version.py` auf `0.3.3` aktualisiert.
 - Beide Split-Ergebnisse anhand ihrer Schwerpunktlage relativ zur Ebenennormalen als Segment A und B zugeordnet.
