@@ -321,4 +321,43 @@ Fusion test:
 5. Add a line and verify its endpoints are not counted as standalone positions.
 6. Verify that inspection creates no geometry or timeline item.
 
+Test result: Passed in Fusion and confirmed by the project owner after the selection fixes.
+
+## Version 0.3.8
+
+### Step 11 - Guide the user into position-point editing
+
+Implemented:
+
+- Updated `version.py` and `SegmentJoinPilot.manifest` to version `0.3.8` as instructed by the project owner.
+- Renamed the point-processing mode to `Set Point`.
+- Stored the newly created position sketch as the continuation target after a successful split.
+- Removed the blocking split-success message and replaced it with a Fusion status message and log entry.
+- Queued the native `SketchActivate` command only after the SegmentJoinPilot split command has been destroyed.
+- Automatically selected and opened the generated `SJP_PositionSketch_NNN` for editing.
+- Observed Fusion's global command-termination event and recognized `SketchStop` when the user selects Finish Sketch.
+- Queued a second continuation event after sketch editing ends.
+- Automatically restarted SegmentJoinPilot in `Set Point` mode with the generated sketch preselected.
+- Immediately displayed the number of detected standalone position points in the reopened dialog.
+
+Scope limitation:
+
+- Version `0.3.8` detects and reports points but does not create connectors or sockets.
+- The user still chooses the Sketch Point tool inside Fusion and finishes the sketch explicitly.
+- The continuation is kept in memory for the current Fusion session; it is not restored after stopping the add-in or closing Fusion midway through the workflow.
+
+Fusion test:
+
+1. Stop and restart `SegmentJoinPilot` in the `Utilities > Add-Ins` dialog.
+2. Create a simple solid body and a construction plane that intersects it.
+3. Run `SegmentJoinPilot 0.3.8` in `Create split operation` mode and complete the split.
+4. Verify that no blocking success dialog is shown.
+5. Verify that Fusion automatically opens the generated `SJP_PositionSketch_001` for editing.
+6. Add two standalone sketch points using Fusion's Sketch Point tool.
+7. Select `Finish Sketch`.
+8. Verify that SegmentJoinPilot automatically reopens in `Set Point` mode.
+9. Verify that `SJP_PositionSketch_001` is already selected and that two standalone points are reported.
+10. Confirm the dialog and verify that both point coordinates are shown.
+11. Repeat once and verify that the second operation continues with `SJP_PositionSketch_002` rather than the first sketch.
+
 Test result: Pending manual test in Fusion.

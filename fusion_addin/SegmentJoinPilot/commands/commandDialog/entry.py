@@ -32,6 +32,14 @@ ICON_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resource
 # they are not released and garbage collected.
 local_handlers = []
 
+WORKFLOW_EVENT_ID = f'{CMD_ID}_workflow'
+SET_POINT_MODE_NAME = 'Set Point'
+_workflow_event = None
+_pending_workflow_action = None
+_workflow_sketch = None
+_waiting_for_sketch_finish = False
+_startup_set_point_sketch = None
+
 # Fusion model geometry uses centimeters internally.
 PLANE_DISTANCE_TOLERANCE_CM = 1e-6
 SJP_NAME_PATTERN = re.compile(r'^SJP_(?:Split|Segment_[AB])_(\d+)$')
@@ -39,11 +47,17 @@ SJP_NAME_PATTERN = re.compile(r'^SJP_(?:Split|Segment_[AB])_(\d+)$')
 
 # Executed when add-in is run.
 def start():
+    global _workflow_event
+
     # Create a command Definition.
     cmd_def = ui.commandDefinitions.addButtonDefinition(CMD_ID, CMD_NAME, CMD_Description, ICON_FOLDER)
 
     # Define an event handler for the command created event. It will be called when the button is clicked.
     futil.add_handler(cmd_def.commandCreated, command_created)
+
+    _workflow_event = app.registerCustomEvent(WORKFLOW_EVENT_ID)
+    futil.add_handler(_workflow_event, workflow_event_received)
+    futil.add_handler(ui.commandTerminated, user_interface_command_terminated)
 
     # ******** Add a button into the UI so the user can run the command. ********
     # Get the target workspace the button will be created in.
@@ -61,6 +75,8 @@ def start():
 
 # Executed when add-in is stopped.
 def stop():
+    global _workflow_event
+
     # Get the various UI elements for this command
     workspace = ui.workspaces.itemById(WORKSPACE_ID)
     panel = workspace.toolbarPanels.itemById(PANEL_ID)
@@ -75,10 +91,16 @@ def stop():
     if command_definition:
         command_definition.deleteMe()
 
+    if _workflow_event is not None:
+        app.unregisterCustomEvent(WORKFLOW_EVENT_ID)
+        _workflow_event = None
+
 
 # Function that is called when a user clicks the corresponding button in the UI.
 # This defines the contents of the command dialog and connects to the command related events.
 def command_created(args: adsk.core.CommandCreatedEventArgs):
+    global _startup_set_point_sketch
+
     # General logging for debug.
     futil.log(f'{CMD_NAME} Command Created Event')
 
@@ -88,10 +110,14 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     mode_input = inputs.addDropDownCommandInput(
         'operation_mode', 'Mode', adsk.core.DropDownStyles.TextListDropDownStyle
     )
-    mode_input.listItems.add('Create split operation', True, '')
-    mode_input.listItems.add('Inspect existing position sketch', False, '')
+    startup_sketch = _startup_set_point_sketch
+    _startup_set_point_sketch = None
+    start_in_set_point_mode = startup_sketch is not None and startup_sketch.isValid
+    mode_input.listItems.add('Create split operation', not start_in_set_point_mode, '')
+    mode_input.listItems.add(SET_POINT_MODE_NAME, start_in_set_point_mode, '')
 
     split_group = inputs.addGroupCommandInput('split_group', 'Split')
+    split_group.isVisible = not start_in_set_point_mode
     split_inputs = split_group.children
 
     body_input = split_inputs.addSelectionInput(
@@ -113,7 +139,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     inputs.addTextBoxCommandInput(
         'step_scope',
         '',
-        f'Version {__version__} creates a split or inspects standalone sketch points.',
+        f'Version {__version__} guides the split and position-point workflow.',
         2,
         True,
     )
@@ -126,17 +152,24 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     )
 
     positions_group = inputs.addGroupCommandInput('positions_group', 'Positions')
-    positions_group.isVisible = False
+    positions_group.isVisible = start_in_set_point_mode
     positions_inputs = positions_group.children
     sketch_input = positions_inputs.addSelectionInput(
         'position_sketch', 'Position sketch', 'Select an SJP sketch or one of its points.'
     )
     sketch_input.addSelectionFilter('Sketches')
     sketch_input.addSelectionFilter('SketchPoints')
-    sketch_input.setSelectionLimits(0, 1)
-    positions_inputs.addTextBoxCommandInput(
+    sketch_input.setSelectionLimits(1 if start_in_set_point_mode else 0, 1)
+    point_status = positions_inputs.addTextBoxCommandInput(
         'point_status', 'Detected points', 'Select a position sketch.', 2, True
     )
+
+    if start_in_set_point_mode:
+        body_input.setSelectionLimits(0, 1)
+        plane_input.setSelectionLimits(0, 1)
+        sketch_input.addSelection(startup_sketch)
+        point_count = len(_standalone_sketch_points(startup_sketch))
+        point_status.text = f'{point_count} standalone sketch point(s) detected.'
 
     futil.add_handler(args.command.execute, command_execute, local_handlers=local_handlers)
     futil.add_handler(args.command.inputChanged, command_input_changed, local_handlers=local_handlers)
@@ -203,7 +236,7 @@ def _is_inspect_mode(inputs: adsk.core.CommandInputs) -> bool:
     return (
         mode_input is not None
         and mode_input.selectedItem is not None
-        and mode_input.selectedItem.name == 'Inspect existing position sketch'
+        and mode_input.selectedItem.name == SET_POINT_MODE_NAME
     )
 
 
@@ -289,6 +322,8 @@ def _selections_intersect(inputs: adsk.core.CommandInputs) -> bool:
 
 
 def command_execute(args: adsk.core.CommandEventArgs):
+    global _workflow_sketch, _pending_workflow_action
+
     inputs = args.command.commandInputs
     if _is_inspect_mode(inputs):
         _inspect_position_sketch(inputs)
@@ -374,19 +409,15 @@ def command_execute(args: adsk.core.CommandEventArgs):
             raise RuntimeError('Fusion could not create the operation timeline group.')
         timeline_group.name = f'SJP_Operation_{operation_suffix}'
 
-        plane_name = getattr(plane, 'name', 'Selected plane')
-        ui.messageBox(
-            f'Split completed successfully.\n\n'
-            f'Original body: {original_body_name}\n'
-            f'Construction plane: {plane_name}\n'
-            f'Timeline group: {timeline_group.name}\n'
-            f'Split feature: {split_feature.name}\n'
-            f'Position sketch: {position_sketch.name}\n'
-            f'Segment A: {segment_a.name} (negative plane side)\n'
-            f'Segment A section faces: {len(section_faces_a)}\n'
-            f'Segment B: {segment_b.name} (positive plane side)\n'
-            f'Segment B section faces: {len(section_faces_b)}',
-            CMD_NAME,
+        _workflow_sketch = position_sketch
+        _pending_workflow_action = 'activate_sketch'
+        ui.statusMessage = (
+            f'{CMD_NAME}: split completed. Add standalone points to '
+            f'{position_sketch.name}, then select Finish Sketch.'
+        )
+        futil.log(
+            f'Split completed: {original_body_name}, {split_feature.name}, '
+            f'{position_sketch.name}, {segment_a.name}, {segment_b.name}'
         )
     except Exception as error:
         if timeline_group is not None and timeline_group.isValid:
@@ -465,3 +496,59 @@ def command_destroy(args: adsk.core.CommandEventArgs):
 
     global local_handlers
     local_handlers = []
+
+    if _pending_workflow_action == 'activate_sketch':
+        app.fireCustomEvent(WORKFLOW_EVENT_ID)
+
+
+def workflow_event_received(args: adsk.core.CustomEventArgs):
+    global _pending_workflow_action
+    global _waiting_for_sketch_finish
+    global _startup_set_point_sketch
+
+    action = _pending_workflow_action
+    _pending_workflow_action = None
+
+    if action == 'activate_sketch':
+        if _workflow_sketch is None or not _workflow_sketch.isValid:
+            ui.messageBox('The newly created position sketch is no longer available.', CMD_NAME)
+            return
+
+        sketch_command = ui.commandDefinitions.itemById('SketchActivate')
+        if sketch_command is None:
+            ui.messageBox('Fusion could not find the Edit Sketch command.', CMD_NAME)
+            return
+
+        ui.activeSelections.clear()
+        ui.activeSelections.add(_workflow_sketch)
+        _waiting_for_sketch_finish = True
+        if not sketch_command.execute():
+            _waiting_for_sketch_finish = False
+            ui.messageBox('Fusion could not open the position sketch for editing.', CMD_NAME)
+        return
+
+    if action == 'reopen_set_point':
+        if _workflow_sketch is None or not _workflow_sketch.isValid:
+            ui.messageBox('The position sketch is no longer available.', CMD_NAME)
+            return
+
+        command_definition = ui.commandDefinitions.itemById(CMD_ID)
+        if command_definition is None:
+            ui.messageBox('SegmentJoinPilot could not be restarted.', CMD_NAME)
+            return
+
+        _startup_set_point_sketch = _workflow_sketch
+        if not command_definition.execute():
+            _startup_set_point_sketch = None
+            ui.messageBox('SegmentJoinPilot could not be restarted.', CMD_NAME)
+
+
+def user_interface_command_terminated(args: adsk.core.ApplicationCommandEventArgs):
+    global _pending_workflow_action, _waiting_for_sketch_finish
+
+    if not _waiting_for_sketch_finish or args.commandId != 'SketchStop':
+        return
+
+    _waiting_for_sketch_finish = False
+    _pending_workflow_action = 'reopen_set_point'
+    app.fireCustomEvent(WORKFLOW_EVENT_ID)

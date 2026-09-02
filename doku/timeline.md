@@ -2,9 +2,23 @@
 
 Diese Datei enthält die kompakte chronologische Übersicht aller freigegebenen und begonnenen Projektversionen. Ausführliche Implementierungsdetails, Testanleitungen und Testergebnisse werden weiterhin im [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) geführt.
 
-## 2026-09-02 — Version 0.3.7
+## 2026-09-02 — Version 0.3.8
 
 Status: Implementiert, Fusion-Test ausstehend.
+
+- Manifest und `version.py` auf `0.3.8` aktualisiert.
+- Punktmodus in `Set Point` umbenannt.
+- Nach erfolgreichem Split automatisch die neu erzeugte Positionsskizze ausgewählt und zur Bearbeitung geöffnet.
+- Blockierenden Erfolgsdialog durch eine Fusion-Statusmeldung und einen Log-Eintrag ersetzt.
+- Ende der Skizzenbearbeitung über den Fusion-Befehl `SketchStop` erkannt.
+- SegmentJoinPilot nach `Finish Sketch` automatisch erneut gestartet.
+- Modus `Set Point` und zugehörige Positionsskizze beim Neustart automatisch vorbelegt.
+- Anzahl der gesetzten eigenständigen Punkte unmittelbar angezeigt.
+- Noch keine Verbinder- oder Gegenstückgeometrie erzeugt.
+
+## 2026-09-02 — Version 0.3.7
+
+Status: In Fusion getestet und nach den Auswahlkorrekturen freigegeben.
 
 - Zwei Betriebsmodi für neue Split-Operationen und die Prüfung vorhandener Positionsskizzen ergänzt.
 - Auswahlgrenzen beim Moduswechsel dynamisch angepasst, damit ausgeblendete Pflichtfelder die OK-Schaltfläche nicht blockieren.
