@@ -390,4 +390,84 @@ Fusion test:
 6. Confirm the dialog and verify that five coordinate lines are displayed.
 7. Verify that the sketch origin and any projected/reference points are not included.
 
-Test result: Pending manual test in Fusion.
+Test result: Passed in Fusion and confirmed by the project owner.
+
+## Version 0.3.10
+
+### Step 13 - Transform position points into model space
+
+Implemented:
+
+- Updated `version.py` and `SegmentJoinPilot.manifest` to version `0.3.10` as instructed by the project owner.
+- Added a dedicated coordinate-conversion helper for position points.
+- Preserved each point's native X/Y coordinates in sketch space.
+- Converted each position through Fusion's assembly-context-aware `Sketch.sketchToModelSpace` API.
+- Reported the resulting model-space X/Y/Z coordinates together with the sketch-space coordinates.
+- Added an explicit error if Fusion cannot return a model-space point.
+
+Scope limitation:
+
+- This step verifies the coordinate foundation only and does not create connector or socket geometry.
+- Values in the verification message use Fusion's internal centimeter unit.
+
+Fusion test:
+
+1. Stop and restart `SegmentJoinPilot` in the `Utilities > Add-Ins` dialog.
+2. Split a simple body using an angled construction plane.
+3. Add at least two position points or draw a rectangle in the automatically opened position sketch.
+4. Select `Finish Sketch` and confirm the automatically reopened `Set Point` dialog.
+5. Verify that every detected position has sketch-space X/Y and model-space X/Y/Z coordinates.
+6. Verify that model-space Z is not forced to zero for an offset or angled split plane.
+7. Repeat with a plane in another orientation and verify that the model coordinates change consistently while the sketch coordinates remain local to the sketch.
+
+Test result: Passed in Fusion and confirmed by the project owner.
+
+## Version 0.4.0
+
+### Step 14 - Create the first round connector profile
+
+Implemented:
+
+- Updated `version.py` and `SegmentJoinPilot.manifest` to version `0.4.0` as instructed by the project owner.
+- Added a `Connector` group to `Set Point` mode.
+- Added the initial connector shape `Round` and a diameter input with a default value of `6 mm`.
+- Required a positive diameter before the command can be confirmed.
+- Resolved the operation suffix from the selected `SJP_PositionSketch_NNN`.
+- Created a separate `SJP_ConnectorProfile_NNN_01` sketch on the same planar reference as the position sketch.
+- Used `Sketches.addWithoutEdges` so section-face edges are not copied into the connector profile sketch.
+- Transformed the first detected position through model space into the new profile sketch's coordinate system.
+- Created one circle with Fusion's `SketchCircles.addByCenterRadius` API.
+- Added cleanup of the new profile sketch if profile creation fails.
+- Prevented accidental duplicate creation when the expected profile sketch already exists.
+- Corrected the position filter after Fusion testing showed that endpoints of automatically included section-face edges were not always marked as reference points themselves.
+- Excluded points connected to reference sketch geometry while retaining standalone points and vertices connected only to user-created geometry.
+- Also excluded invisible points and points connected to invisible geometry, using Fusion's explicit marker for geometry automatically included from a sketch support face.
+
+Scope limitation:
+
+- Only the first detected position point is processed in this step.
+- Only the `Round` profile is available.
+- The circle is profile geometry only; it is not extruded and no socket is cut.
+- The new profile sketch is not yet added to the existing operation timeline group.
+
+Fusion test:
+
+1. Stop and restart `SegmentJoinPilot` in the `Utilities > Add-Ins` dialog.
+2. Split a simple solid and add at least two position points in the automatically opened sketch.
+3. Select `Finish Sketch` and verify that `Set Point` displays the `Connector` group.
+4. Verify that `Shape` is `Round` and set `Diameter` to `8 mm`.
+5. Confirm the command.
+6. Verify that `SJP_ConnectorProfile_001_01` is created as a separate sketch.
+7. Verify that the detected positions do not include endpoints of automatically included section-face edges.
+8. Verify that the sketch contains exactly one circle centered on the first eligible user-created point.
+9. Measure the circle and verify that its diameter is `8 mm`.
+10. Verify that no connector solid and no socket feature have been created.
+11. Run `Set Point` again with the same position sketch and verify that duplicate profile creation is rejected without adding geometry.
+
+Test result: Passed in Fusion and confirmed by the project owner after excluding automatically included support-face points.
+
+Planned follow-up confirmed during the Fusion test:
+
+- Detected position points will become selectable candidates rather than an automatically mandatory set.
+- The user will be able to enable or disable individual candidates and add custom points.
+- A four-corner arrangement must support selecting only two diagonal points before connector generation.

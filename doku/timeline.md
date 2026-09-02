@@ -2,9 +2,37 @@
 
 Diese Datei enthält die kompakte chronologische Übersicht aller freigegebenen und begonnenen Projektversionen. Ausführliche Implementierungsdetails, Testanleitungen und Testergebnisse werden weiterhin im [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) geführt.
 
+## 2026-09-02 — Version 0.4.0
+
+Status: In Fusion getestet und nach Korrektur der Punktfilterung freigegeben.
+
+- Manifest und `version.py` auf `0.4.0` aktualisiert.
+- Connector-Gruppe im Modus `Set Point` ergänzt.
+- Profilform `Round` und Durchmesser mit `6 mm` Standardwert ergänzt.
+- Separates Profil-Sketch ohne projizierte Flächenkanten angelegt.
+- Ersten erkannten Positionspunkt in das Koordinatensystem des Profil-Sketches übertragen.
+- Rundes Profil am ersten Positionspunkt erzeugt und stabil benannt.
+- Rollback bei fehlgeschlagener Profilerzeugung und Schutz vor doppeltem Profil ergänzt.
+- Nach Fusion-Test automatisch übernommene Schnittflächen-Eckpunkte aus der Positionsauswahl ausgeschlossen.
+- Unsichtbare, von Fusion automatisch aus der Auflagefläche übernommene Skizzengeometrie ausdrücklich herausgefiltert.
+- Freie Punkte und Eckpunkte ausschließlich benutzergezeichneter Geometrie weiterhin zugelassen.
+- Noch keine Extrusion oder Taschengeometrie erzeugt.
+- Als Folgeschritt festgehalten: Erkannte Punkte werden einzeln an- und abwählbar; eigene Punkte und eine diagonale Zweipunktauswahl bei vier Rechteckecken werden unterstützt.
+
+## 2026-09-02 — Version 0.3.10
+
+Status: In Fusion getestet und freigegeben.
+
+- Manifest und `version.py` auf `0.3.10` aktualisiert.
+- Lokale X/Y-Koordinaten jedes Positionspunkts beibehalten.
+- Positionspunkte mit der kontextabhängigen Fusion-Skizzentransformation in Modellkoordinaten überführt.
+- Modellkoordinaten X/Y/Z zusammen mit den lokalen Skizzenkoordinaten ausgegeben.
+- Fehlerbehandlung für eine fehlgeschlagene Koordinatentransformation ergänzt.
+- Noch keine Verbinder- oder Taschengeometrie erzeugt.
+
 ## 2026-09-02 — Version 0.3.9
 
-Status: Implementiert, Fusion-Test ausstehend.
+Status: In Fusion getestet und freigegeben.
 
 - Manifest und `version.py` auf `0.3.9` aktualisiert.
 - Erkennung von freien Skizzenpunkten auf Kurvenendpunkte und gemeinsam verwendete Eckpunkte erweitert.

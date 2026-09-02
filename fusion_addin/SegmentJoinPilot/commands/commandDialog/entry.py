@@ -43,6 +43,7 @@ _startup_set_point_sketch = None
 # Fusion model geometry uses centimeters internally.
 PLANE_DISTANCE_TOLERANCE_CM = 1e-6
 SJP_NAME_PATTERN = re.compile(r'^SJP_(?:Split|Segment_[AB])_(\d+)$')
+POSITION_SKETCH_NAME_PATTERN = re.compile(r'^SJP_PositionSketch_(\d+)$')
 
 
 # Executed when add-in is run.
@@ -139,7 +140,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     inputs.addTextBoxCommandInput(
         'step_scope',
         '',
-        f'Version {__version__} guides the split and position-point workflow.',
+        f'Version {__version__} creates one round test profile at the first position.',
         2,
         True,
     )
@@ -164,6 +165,20 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
         'point_status', 'Detected points', 'Select a position sketch.', 2, True
     )
 
+    connector_group = inputs.addGroupCommandInput('connector_group', 'Connector')
+    connector_group.isVisible = start_in_set_point_mode
+    connector_inputs = connector_group.children
+    shape_input = connector_inputs.addDropDownCommandInput(
+        'connector_shape', 'Shape', adsk.core.DropDownStyles.TextListDropDownStyle
+    )
+    shape_input.listItems.add('Round', True, '')
+    connector_inputs.addValueInput(
+        'connector_diameter',
+        'Diameter',
+        'mm',
+        adsk.core.ValueInput.createByString('6 mm'),
+    )
+
     if start_in_set_point_mode:
         body_input.setSelectionLimits(0, 1)
         plane_input.setSelectionLimits(0, 1)
@@ -182,10 +197,13 @@ def command_validate_inputs(args: adsk.core.ValidateInputsEventArgs):
     inputs = command.commandInputs if command is not None else args.inputs
     if _is_inspect_mode(inputs):
         sketch_input = inputs.itemById('position_sketch')
+        diameter_input = inputs.itemById('connector_diameter')
         args.areInputsValid = (
             sketch_input is not None
             and sketch_input.selectionCount == 1
             and bool(_position_sketch_points(_selected_position_sketch(sketch_input)))
+            and diameter_input is not None
+            and diameter_input.value > 0
         )
     else:
         args.areInputsValid = _selections_intersect(inputs)
@@ -197,6 +215,7 @@ def command_input_changed(args: adsk.core.InputChangedEventArgs):
         inspect_mode = _is_inspect_mode(root_inputs)
         root_inputs.itemById('split_group').isVisible = not inspect_mode
         root_inputs.itemById('positions_group').isVisible = inspect_mode
+        root_inputs.itemById('connector_group').isVisible = inspect_mode
         root_inputs.itemById('solid_body').setSelectionLimits(
             0 if inspect_mode else 1, 1
         )
@@ -249,7 +268,14 @@ def _position_sketch_points(sketch_entity):
     origin_token = sketch.originPoint.entityToken
     for index in range(sketch.sketchPoints.count):
         point = sketch.sketchPoints.item(index)
-        if point.entityToken == origin_token or point.isReference:
+        if point.entityToken == origin_token or point.isReference or not point.isVisible:
+            continue
+        connected_entities = point.connectedEntities
+        if connected_entities is not None and any(
+            getattr(entity, 'isReference', False)
+            or not getattr(entity, 'isVisible', True)
+            for entity in connected_entities
+        ):
             continue
         points.append(point)
     return points
@@ -280,13 +306,97 @@ def _inspect_position_sketch(inputs: adsk.core.CommandInputs):
 
     point_lines = []
     for index, point in enumerate(points, start=1):
-        position = point.geometry
-        point_lines.append(f'Point {index}: X={position.x:.4f} cm, Y={position.y:.4f} cm')
+        sketch_position, model_position = _position_coordinates(sketch, point)
+        point_lines.append(
+            f'Point {index}: '
+            f'sketch X={sketch_position.x:.4f} cm, Y={sketch_position.y:.4f} cm; '
+            f'model X={model_position.x:.4f} cm, '
+            f'Y={model_position.y:.4f} cm, Z={model_position.z:.4f} cm'
+        )
     ui.messageBox(
         f'Position sketch: {sketch.name}\n'
         f'Detected position points: {len(points)}\n\n' + '\n'.join(point_lines),
         CMD_NAME,
     )
+
+
+def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
+    sketch_input = inputs.itemById('position_sketch')
+    diameter_input = inputs.itemById('connector_diameter')
+    sketch = _selected_position_sketch(sketch_input)
+    points = _position_sketch_points(sketch)
+    if sketch is None or not points or diameter_input is None or diameter_input.value <= 0:
+        ui.messageBox('Select a position sketch and enter a positive diameter.', CMD_NAME)
+        return
+
+    name_match = POSITION_SKETCH_NAME_PATTERN.match(sketch.name)
+    if name_match is None:
+        ui.messageBox(
+            'The selected sketch is not a SegmentJoinPilot position sketch.', CMD_NAME
+        )
+        return
+
+    operation_suffix = name_match.group(1)
+    profile_name = f'SJP_ConnectorProfile_{operation_suffix}_01'
+    component = sketch.parentComponent
+    for index in range(component.sketches.count):
+        if component.sketches.item(index).name == profile_name:
+            ui.messageBox(
+                f'{profile_name} already exists. Delete it before repeating this test.',
+                CMD_NAME,
+            )
+            return
+
+    profile_sketch = None
+    try:
+        reference_plane = sketch.referencePlane
+        if reference_plane is None:
+            raise RuntimeError('The position sketch has no planar reference.')
+
+        profile_sketch = component.sketches.addWithoutEdges(reference_plane)
+        if profile_sketch is None:
+            raise RuntimeError('Fusion could not create the connector profile sketch.')
+        profile_sketch.name = profile_name
+
+        _, model_position = _position_coordinates(sketch, points[0])
+        profile_center = profile_sketch.modelToSketchSpace(model_position)
+        if profile_center is None:
+            raise RuntimeError('Fusion could not transform the profile center.')
+
+        radius = diameter_input.value / 2
+        circle = profile_sketch.sketchCurves.sketchCircles.addByCenterRadius(
+            profile_center, radius
+        )
+        if circle is None:
+            raise RuntimeError('Fusion could not create the round connector profile.')
+
+        profile_sketch.isLightBulbOn = True
+        ui.messageBox(
+            f'Round connector profile created.\n\n'
+            f'Profile sketch: {profile_sketch.name}\n'
+            f'Position: Point 1 of {len(points)}\n'
+            f'Diameter: {diameter_input.expression}',
+            CMD_NAME,
+        )
+    except Exception as error:
+        if profile_sketch is not None and profile_sketch.isValid:
+            profile_sketch.deleteMe()
+        futil.log(
+            f'Round connector profile failed: {error}', adsk.core.LogLevels.ErrorLogLevel
+        )
+        ui.messageBox(
+            f'The round connector profile could not be created.\n\n{error}', CMD_NAME
+        )
+
+
+def _position_coordinates(sketch: adsk.fusion.Sketch, point: adsk.fusion.SketchPoint):
+    sketch_position = point.geometry
+    model_position = sketch.sketchToModelSpace(sketch_position)
+    if model_position is None:
+        raise RuntimeError(
+            f'Fusion could not transform point {point.entityToken} into model space.'
+        )
+    return sketch_position, model_position
 
 
 def _selections_intersect(inputs: adsk.core.CommandInputs) -> bool:
@@ -324,7 +434,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
 
     inputs = args.command.commandInputs
     if _is_inspect_mode(inputs):
-        _inspect_position_sketch(inputs)
+        _create_round_connector_profile(inputs)
         return
 
     if not _selections_intersect(inputs):

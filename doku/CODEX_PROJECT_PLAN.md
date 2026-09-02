@@ -114,6 +114,11 @@ Keine Geometriefunktion sollte Werte direkt aus Dialogelementen lesen. Der Event
 - Auswahl einer Skizze auf der Schnittfläche
 - Liste oder Anzahl erkannter Skizzenpunkte
 - Umschaltung zwischen allen und ausgewählten Punkten
+- Automatisch erkannte Punkte sind zunächst auswählbare Kandidaten und keine zwingend zu verarbeitende Menge.
+- Einzelne Kandidaten können vor der Geometrieerzeugung gezielt aktiviert oder deaktiviert werden.
+- Der Benutzer kann zusätzlich eigene freie Punkte in der Positionsskizze anlegen und auswählen.
+- Für typische Vierpunkt-Anordnungen, etwa die Ecken eines Rechtecks, muss eine diagonale Zweipunktauswahl möglich sein.
+- Die endgültige Auswahl muss im Dialog eindeutig erkennbar sein und darf nur diese Punkte an die Connector-Pipeline übergeben.
 
 ### Gruppe „Connector"
 
