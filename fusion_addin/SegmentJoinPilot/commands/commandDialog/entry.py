@@ -31,6 +31,9 @@ ICON_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resource
 # they are not released and garbage collected.
 local_handlers = []
 
+# Fusion model geometry uses centimeters internally.
+PLANE_DISTANCE_TOLERANCE_CM = 1e-6
+
 
 # Executed when add-in is run.
 def start():
@@ -102,7 +105,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     inputs.addTextBoxCommandInput(
         'step_scope',
         '',
-        f'Version {__version__} splits the selected body into exactly two solid bodies.',
+        f'Version {__version__} splits and identifies segments A and B and their section faces.',
         2,
         True,
     )
@@ -212,13 +215,24 @@ def command_execute(args: adsk.core.CommandEventArgs):
                 f'The split produced {result_count} solid bodies instead of exactly two.'
             )
 
+        segment_a, segment_b = _classify_split_results(result_bodies, plane.geometry)
+        section_faces_a = _find_section_faces(segment_a, plane.geometry)
+        section_faces_b = _find_section_faces(segment_b, plane.geometry)
+        if not section_faces_a or not section_faces_b:
+            raise RuntimeError(
+                'Fusion created the split, but the new section faces could not be identified.'
+            )
+
         body_name = getattr(body, 'name', 'Selected body')
         plane_name = getattr(plane, 'name', 'Selected plane')
         ui.messageBox(
             f'Split completed successfully.\n\n'
             f'Original body: {body_name}\n'
             f'Construction plane: {plane_name}\n'
-            f'Result: {len(result_bodies)} solid bodies.',
+            f'Segment A: {segment_a.name} (negative plane side)\n'
+            f'Segment A section faces: {len(section_faces_a)}\n'
+            f'Segment B: {segment_b.name} (positive plane side)\n'
+            f'Segment B section faces: {len(section_faces_b)}',
             CMD_NAME,
         )
     except Exception as error:
@@ -230,6 +244,44 @@ def command_execute(args: adsk.core.CommandEventArgs):
             'No partial split feature was retained.',
             CMD_NAME,
         )
+
+
+def _classify_split_results(result_bodies, split_plane: adsk.core.Plane):
+    classified_bodies = []
+    for body in result_bodies:
+        center_of_mass = body.physicalProperties.centerOfMass
+        offset = split_plane.origin.vectorTo(center_of_mass)
+        signed_distance = split_plane.normal.dotProduct(offset)
+        classified_bodies.append((signed_distance, body))
+
+    classified_bodies.sort(key=lambda item: item[0])
+    negative_distance, segment_a = classified_bodies[0]
+    positive_distance, segment_b = classified_bodies[1]
+    if (
+        negative_distance >= -PLANE_DISTANCE_TOLERANCE_CM
+        or positive_distance <= PLANE_DISTANCE_TOLERANCE_CM
+    ):
+        raise RuntimeError(
+            'The two split results could not be assigned to opposite sides of the plane.'
+        )
+
+    return segment_a, segment_b
+
+
+def _find_section_faces(body: adsk.fusion.BRepBody, split_plane: adsk.core.Plane):
+    section_faces = []
+    for face_index in range(body.faces.count):
+        face = body.faces.item(face_index)
+        face_plane = adsk.core.Plane.cast(face.geometry)
+        if face_plane is None or not face_plane.normal.isParallelTo(split_plane.normal):
+            continue
+
+        plane_offset = split_plane.origin.vectorTo(face_plane.origin)
+        distance = abs(split_plane.normal.dotProduct(plane_offset))
+        if distance <= PLANE_DISTANCE_TOLERANCE_CM:
+            section_faces.append(face)
+
+    return section_faces
 
 
 # This event handler is called when the command terminates.

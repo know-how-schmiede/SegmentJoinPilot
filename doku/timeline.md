@@ -2,9 +2,21 @@
 
 Diese Datei enthält die kompakte chronologische Übersicht aller freigegebenen und begonnenen Projektversionen. Ausführliche Implementierungsdetails, Testanleitungen und Testergebnisse werden weiterhin im [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) geführt.
 
-## 2026-09-02 — Version 0.3.2
+## 2026-09-02 — Version 0.3.3
 
 Status: Implementiert, Fusion-Test ausstehend.
+
+- Manifest und `version.py` auf `0.3.3` aktualisiert.
+- Beide Split-Ergebnisse anhand ihrer Schwerpunktlage relativ zur Ebenennormalen als Segment A und B zugeordnet.
+- Segment A als negative und Segment B als positive Seite der Schnittebene definiert.
+- Neu entstandene planare Schnittflächen geometrisch über Parallelität und Koplanarität erkannt.
+- Mehrere getrennte Schnittflächen pro Segment berücksichtigt.
+- Rollback bei nicht eindeutiger Seitenzuordnung oder fehlenden Schnittflächen ergänzt.
+- Seitenzuordnung und Anzahl der erkannten Schnittflächen in der Erfolgsmeldung ausgegeben.
+
+## 2026-09-02 — Version 0.3.2
+
+Status: In Fusion getestet und freigegeben.
 
 - Manifest und `version.py` auf `0.3.2` aktualisiert.
 - Ausgewählten Solid-Körper mit der gewählten Konstruktionsebene geteilt.

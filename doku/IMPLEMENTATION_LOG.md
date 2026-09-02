@@ -156,4 +156,37 @@ Fusion test:
 8. Repeat with an angled plane that passes through the box.
 9. Verify that an outside plane is still rejected before execution.
 
+Test result: Passed in Fusion and confirmed by the project owner.
+
+## Version 0.3.3
+
+### Step 6 - Identify segment sides and section faces
+
+Implemented:
+
+- Updated `version.py` and `SegmentJoinPilot.manifest` to version `0.3.3` as instructed by the project owner.
+- Classified the two split results by signed center-of-mass distance from the selected construction plane.
+- Defined Segment A as the result on the negative side of the plane normal and Segment B as the result on the positive side.
+- Identified section faces geometrically by planar surface type, parallel normals, and coplanar distance tolerance.
+- Supported more than one coplanar section face per segment instead of assuming a single face.
+- Added rollback when the results cannot be assigned to opposite plane sides or section faces cannot be found on both segments.
+- Reported the temporary Fusion body names, side assignment, and section-face counts in the completion message.
+
+Scope limitation:
+
+- Segment bodies and the split feature are not renamed yet.
+- Detected section-face references are not persisted yet.
+- No timeline group, connector, socket, or preview functionality is implemented.
+
+Fusion test:
+
+1. Stop and restart `SegmentJoinPilot` in the `Utilities > Add-Ins` dialog.
+2. Create a simple box and a construction plane through its center.
+3. Run `SegmentJoinPilot 0.3.3`, select both entities, and confirm.
+4. Verify that the completion message identifies Segment A on the negative plane side and Segment B on the positive plane side.
+5. Verify that at least one section face is reported for both segments.
+6. Reverse or recreate the construction plane with the opposite normal direction and verify that the A/B assignment swaps accordingly.
+7. Repeat with an angled plane and verify that both segments and their section faces are still identified.
+8. Verify that the operation creates only the split feature and two result bodies, with no additional geometry.
+
 Test result: Pending manual test in Fusion.
