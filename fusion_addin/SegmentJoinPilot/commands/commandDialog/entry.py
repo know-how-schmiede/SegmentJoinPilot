@@ -168,8 +168,8 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
         body_input.setSelectionLimits(0, 1)
         plane_input.setSelectionLimits(0, 1)
         sketch_input.addSelection(startup_sketch)
-        point_count = len(_standalone_sketch_points(startup_sketch))
-        point_status.text = f'{point_count} standalone sketch point(s) detected.'
+        point_count = len(_position_sketch_points(startup_sketch))
+        point_status.text = f'{point_count} position point(s) detected.'
 
     futil.add_handler(args.command.execute, command_execute, local_handlers=local_handlers)
     futil.add_handler(args.command.inputChanged, command_input_changed, local_handlers=local_handlers)
@@ -185,7 +185,7 @@ def command_validate_inputs(args: adsk.core.ValidateInputsEventArgs):
         args.areInputsValid = (
             sketch_input is not None
             and sketch_input.selectionCount == 1
-            and bool(_standalone_sketch_points(_selected_position_sketch(sketch_input)))
+            and bool(_position_sketch_points(_selected_position_sketch(sketch_input)))
         )
     else:
         args.areInputsValid = _selections_intersect(inputs)
@@ -212,8 +212,8 @@ def command_input_changed(args: adsk.core.InputChangedEventArgs):
         point_status = args.inputs.itemById('point_status')
         point_count = 0
         if args.input.selectionCount == 1:
-            point_count = len(_standalone_sketch_points(_selected_position_sketch(args.input)))
-        point_status.text = f'{point_count} standalone sketch point(s) detected.'
+            point_count = len(_position_sketch_points(_selected_position_sketch(args.input)))
+        point_status.text = f'{point_count} position point(s) detected.'
         return
 
     if args.input.id not in ('solid_body', 'construction_plane'):
@@ -240,7 +240,7 @@ def _is_inspect_mode(inputs: adsk.core.CommandInputs) -> bool:
     )
 
 
-def _standalone_sketch_points(sketch_entity):
+def _position_sketch_points(sketch_entity):
     sketch = adsk.fusion.Sketch.cast(sketch_entity)
     if sketch is None:
         return []
@@ -251,9 +251,7 @@ def _standalone_sketch_points(sketch_entity):
         point = sketch.sketchPoints.item(index)
         if point.entityToken == origin_token or point.isReference:
             continue
-        connected_entities = point.connectedEntities
-        if connected_entities is None or len(connected_entities) == 0:
-            points.append(point)
+        points.append(point)
     return points
 
 
@@ -275,9 +273,9 @@ def _inspect_position_sketch(inputs: adsk.core.CommandInputs):
         return
 
     sketch = _selected_position_sketch(sketch_input)
-    points = _standalone_sketch_points(sketch)
+    points = _position_sketch_points(sketch)
     if not points:
-        ui.messageBox('No standalone sketch points were found.', CMD_NAME)
+        ui.messageBox('No position points were found.', CMD_NAME)
         return
 
     point_lines = []
@@ -286,7 +284,7 @@ def _inspect_position_sketch(inputs: adsk.core.CommandInputs):
         point_lines.append(f'Point {index}: X={position.x:.4f} cm, Y={position.y:.4f} cm')
     ui.messageBox(
         f'Position sketch: {sketch.name}\n'
-        f'Detected standalone points: {len(points)}\n\n' + '\n'.join(point_lines),
+        f'Detected position points: {len(points)}\n\n' + '\n'.join(point_lines),
         CMD_NAME,
     )
 
@@ -412,7 +410,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
         _workflow_sketch = position_sketch
         _pending_workflow_action = 'activate_sketch'
         ui.statusMessage = (
-            f'{CMD_NAME}: split completed. Add standalone points to '
+            f'{CMD_NAME}: split completed. Add position points or sketch geometry to '
             f'{position_sketch.name}, then select Finish Sketch.'
         )
         futil.log(

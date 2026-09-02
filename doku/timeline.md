@@ -2,9 +2,20 @@
 
 Diese Datei enthält die kompakte chronologische Übersicht aller freigegebenen und begonnenen Projektversionen. Ausführliche Implementierungsdetails, Testanleitungen und Testergebnisse werden weiterhin im [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) geführt.
 
-## 2026-09-02 — Version 0.3.8
+## 2026-09-02 — Version 0.3.9
 
 Status: Implementiert, Fusion-Test ausstehend.
+
+- Manifest und `version.py` auf `0.3.9` aktualisiert.
+- Erkennung von freien Skizzenpunkten auf Kurvenendpunkte und gemeinsam verwendete Eckpunkte erweitert.
+- Damit insbesondere die vier Eckpunkte eines gezeichneten Rechtecks als Positionen zugelassen.
+- Skizzenursprung und Referenzpunkte weiterhin ausgeschlossen.
+- Englische Oberfläche und interne Bezeichnungen auf den allgemeineren Begriff `position points` umgestellt.
+- Noch keine Verbinder- oder Gegenstückgeometrie erzeugt.
+
+## 2026-09-02 — Version 0.3.8
+
+Status: In Fusion getestet und freigegeben.
 
 - Manifest und `version.py` auf `0.3.8` aktualisiert.
 - Punktmodus in `Set Point` umbenannt.

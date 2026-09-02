@@ -360,4 +360,34 @@ Fusion test:
 10. Confirm the dialog and verify that both point coordinates are shown.
 11. Repeat once and verify that the second operation continues with `SJP_PositionSketch_002` rather than the first sketch.
 
+Test result: Passed in Fusion and confirmed by the project owner.
+
+## Version 0.3.9
+
+### Step 12 - Accept sketch vertices as position points
+
+Implemented:
+
+- Updated `version.py` and `SegmentJoinPilot.manifest` to version `0.3.9` as instructed by the project owner.
+- Extended position-point detection from isolated sketch points to all eligible non-reference sketch points.
+- Added curve endpoints and shared vertices, including rectangle corners, to the detected position points.
+- Continued to exclude the sketch origin and reference points.
+- Renamed internal helpers and English user-interface messages from `standalone sketch points` to the more general `position points` terminology.
+- Updated the guided sketch-editing status message to mention both points and sketch geometry.
+
+Scope limitation:
+
+- Every eligible non-reference point owned by the selected sketch is treated as a position; connector geometry is not created yet.
+- Projected/reference geometry remains excluded.
+
+Fusion test:
+
+1. Stop and restart `SegmentJoinPilot` in the `Utilities > Add-Ins` dialog.
+2. Create a split operation and wait for the generated position sketch to open automatically.
+3. Draw one rectangle and add one separate sketch point.
+4. Select `Finish Sketch` and verify that SegmentJoinPilot reopens in `Set Point` mode.
+5. Verify that five position points are reported: four rectangle corners and the separate point.
+6. Confirm the dialog and verify that five coordinate lines are displayed.
+7. Verify that the sketch origin and any projected/reference points are not included.
+
 Test result: Pending manual test in Fusion.
