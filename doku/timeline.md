@@ -2,9 +2,21 @@
 
 Diese Datei enthält die kompakte chronologische Übersicht aller freigegebenen und begonnenen Projektversionen. Ausführliche Implementierungsdetails, Testanleitungen und Testergebnisse werden weiterhin im [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) geführt.
 
+## 2026-09-02 — Version 0.3.6
+
+Status: In Fusion getestet und freigegeben.
+
+- Manifest und `version.py` auf `0.3.6` aktualisiert.
+- Zyklische Vorbedingung einer bereits vorhandenen Positionsskizze nach Fusion-Test entfernt.
+- Leere Positionsskizze nach dem Split automatisch auf der größten Schnittfläche von Segment A erzeugt.
+- Skizze nach dem Schema `SJP_PositionSketch_NNN` benannt.
+- Split und Positionsskizze gemeinsam als `SJP_Operation_NNN` gruppiert.
+- Gruppen- und Skizzenbereinigung in den Fehler-Rollback aufgenommen.
+- Noch keine Skizzenpunkte oder Verbinder erzeugt.
+
 ## 2026-09-02 — Version 0.3.5
 
-Status: Implementiert, Fusion-Test ausstehend.
+Status: Nach Entfernung des nicht unterstützten Ein-Feature-Gruppierungsversuchs in Fusion getestet und freigegeben.
 
 - Manifest und `version.py` auf `0.3.5` aktualisiert.
 - Ursprünglichen Versuch dokumentiert, das einzelne Split-Feature als `SJP_Operation_NNN` zu gruppieren.

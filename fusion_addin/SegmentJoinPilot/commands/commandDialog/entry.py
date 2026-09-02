@@ -107,7 +107,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     inputs.addTextBoxCommandInput(
         'step_scope',
         '',
-        f'Version {__version__} prepares the named operation for later timeline grouping.',
+        f'Version {__version__} creates an empty position sketch after splitting.',
         2,
         True,
     )
@@ -194,6 +194,8 @@ def command_execute(args: adsk.core.CommandEventArgs):
     )
 
     split_feature = None
+    position_sketch = None
+    timeline_group = None
     try:
         component = body.parentComponent
         original_body_name = body.name
@@ -233,12 +235,36 @@ def command_execute(args: adsk.core.CommandEventArgs):
         segment_a.name = f'SJP_Segment_A_{operation_suffix}'
         segment_b.name = f'SJP_Segment_B_{operation_suffix}'
 
+        primary_section_face = max(section_faces_a, key=lambda face: face.area)
+        position_sketch = component.sketches.add(primary_section_face)
+        if position_sketch is None:
+            raise RuntimeError('Fusion could not create the position sketch.')
+        position_sketch.name = f'SJP_PositionSketch_{operation_suffix}'
+
+        split_timeline_object = split_feature.timelineObject
+        sketch_timeline_object = position_sketch.timelineObject
+        if split_timeline_object is None or sketch_timeline_object is None:
+            raise RuntimeError('Fusion did not create timeline entries for the operation.')
+
+        design = adsk.fusion.Design.cast(app.activeProduct)
+        if design is None:
+            raise RuntimeError('The active product is not a Fusion Design.')
+        timeline_group = design.timeline.timelineGroups.add(
+            split_timeline_object.index,
+            sketch_timeline_object.index,
+        )
+        if timeline_group is None:
+            raise RuntimeError('Fusion could not create the operation timeline group.')
+        timeline_group.name = f'SJP_Operation_{operation_suffix}'
+
         plane_name = getattr(plane, 'name', 'Selected plane')
         ui.messageBox(
             f'Split completed successfully.\n\n'
             f'Original body: {original_body_name}\n'
             f'Construction plane: {plane_name}\n'
+            f'Timeline group: {timeline_group.name}\n'
             f'Split feature: {split_feature.name}\n'
+            f'Position sketch: {position_sketch.name}\n'
             f'Segment A: {segment_a.name} (negative plane side)\n'
             f'Segment A section faces: {len(section_faces_a)}\n'
             f'Segment B: {segment_b.name} (positive plane side)\n'
@@ -246,6 +272,10 @@ def command_execute(args: adsk.core.CommandEventArgs):
             CMD_NAME,
         )
     except Exception as error:
+        if timeline_group is not None and timeline_group.isValid:
+            timeline_group.deleteMe(False)
+        if position_sketch is not None and position_sketch.isValid:
+            position_sketch.deleteMe()
         if split_feature is not None and split_feature.isValid:
             split_feature.deleteMe()
         futil.log(f'Split body failed: {error}', adsk.core.LogLevels.ErrorLogLevel)

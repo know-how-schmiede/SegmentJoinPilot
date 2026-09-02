@@ -252,4 +252,39 @@ Fusion test:
 6. Verify that the bodies remain named `SJP_Segment_A_001` and `SJP_Segment_B_001`.
 7. Undo the operation and verify that the original body is restored.
 
-Test result: Pending manual retest after removing the unsupported single-feature grouping attempt.
+Test result: Passed in Fusion and confirmed by the project owner after removing the unsupported single-feature grouping attempt.
+
+## Version 0.3.6
+
+### Step 9 - Create the position sketch after splitting
+
+Implemented:
+
+- Updated `version.py` and `SegmentJoinPilot.manifest` to version `0.3.6` as instructed by the project owner.
+- A first implementation incorrectly required a position sketch before the body could be split.
+- Removed the cyclic pre-split sketch requirement after Fusion workflow testing.
+- Automatically created an empty position sketch on the largest detected section face of Segment A after the split.
+- Named the sketch `SJP_PositionSketch_NNN` with the current operation suffix.
+- Created `SJP_Operation_NNN` now that the split and position sketch provide the two real features required by Fusion.
+- Added group and sketch cleanup to the operation rollback.
+- Reported the timeline-group and position-sketch names in the completion message.
+
+Scope limitation:
+
+- The generated sketch is empty; sketch points are not created or processed in this step.
+- The largest Segment A section face is used when a split produces multiple coplanar section faces.
+- No connector, socket, or preview functionality is implemented.
+
+Fusion test:
+
+1. Stop and restart `SegmentJoinPilot` in the `Utilities > Add-Ins` dialog.
+2. Create only a solid body and an intersecting construction plane; do not create a sketch manually.
+3. Run `SegmentJoinPilot 0.3.6` from `Solid > Create`.
+4. Verify that the dialog requires only the body and construction plane.
+5. Confirm the command and verify that the split completes.
+6. Verify that an empty sketch named `SJP_PositionSketch_001` was created on the Segment A section face.
+7. Verify that `SJP_Operation_001` contains exactly `SJP_Split_001` and `SJP_PositionSketch_001`.
+8. Verify that the segment body names remain correct.
+9. Undo once and verify that the group, sketch, split, and result segments are removed together.
+
+Test result: Passed in Fusion and confirmed by the project owner after replacing the cyclic sketch-selection requirement with automatic post-split sketch creation.
