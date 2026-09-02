@@ -2,9 +2,20 @@
 
 Diese Datei enthält die kompakte chronologische Übersicht aller freigegebenen und begonnenen Projektversionen. Ausführliche Implementierungsdetails, Testanleitungen und Testergebnisse werden weiterhin im [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) geführt.
 
-## 2026-09-02 — Version 0.3.4
+## 2026-09-02 — Version 0.3.5
 
 Status: Implementiert, Fusion-Test ausstehend.
+
+- Manifest und `version.py` auf `0.3.5` aktualisiert.
+- Ursprünglichen Versuch dokumentiert, das einzelne Split-Feature als `SJP_Operation_NNN` zu gruppieren.
+- Fusion-Fehler erkannt: Timeline-Gruppen benötigen mindestens zwei Features.
+- Nicht unterstützten Ein-Feature-Gruppierungsversuch entfernt, damit der gültige Split erhalten bleibt.
+- Künftigen Gruppennamen und die übereinstimmende Operationsnummer reserviert.
+- Tatsächliche Gruppenerstellung auf den ersten späteren Schritt mit mindestens zwei echten Operations-Features verschoben.
+
+## 2026-09-02 — Version 0.3.4
+
+Status: In Fusion getestet und nach Korrektur des InputChanged-Fehlers freigegeben.
 
 - Manifest und `version.py` auf `0.3.4` aktualisiert.
 - Component-lokale, fortlaufende Operationsnummer ermittelt.

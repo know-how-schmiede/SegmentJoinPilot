@@ -107,7 +107,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     inputs.addTextBoxCommandInput(
         'step_scope',
         '',
-        f'Version {__version__} splits, identifies, and names segments A and B.',
+        f'Version {__version__} prepares the named operation for later timeline grouping.',
         2,
         True,
     )

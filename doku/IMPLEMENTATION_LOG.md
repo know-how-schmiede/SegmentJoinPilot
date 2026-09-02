@@ -221,4 +221,35 @@ Fusion test:
 6. Verify that the second operation uses suffix `002` without changing the first operation's names.
 7. Undo the second operation and verify that the first operation and its names remain intact.
 
-Test result: Pending manual test in Fusion.
+Test result: Passed in Fusion and confirmed by the project owner after the validation-input grouping fix.
+
+## Version 0.3.5
+
+### Step 8 - Prepare operation timeline grouping
+
+Implemented:
+
+- Updated `version.py` and `SegmentJoinPilot.manifest` to version `0.3.5` as instructed by the project owner.
+- Initially attempted to create `SJP_Operation_NNN` around the newly created split feature.
+- Fusion testing returned `Create Group Feature Error: At least 2 features needed for a group`.
+- Removed the invalid single-feature grouping attempt so a successful split is no longer rolled back.
+- Reserved the operation name and matching numeric suffix for grouping as soon as the operation contains at least two real features.
+- Deferred actual group creation to the first later implementation step that adds another operation feature.
+
+Scope limitation:
+
+- Fusion requires at least two features in a timeline group; the current operation contains only the split feature.
+- No artificial placeholder feature is created solely to satisfy this requirement.
+- The timeline group is therefore intentionally not created in this version.
+
+Fusion test:
+
+1. Stop and restart `SegmentJoinPilot` in the `Utilities > Add-Ins` dialog.
+2. Open a parametric Design document with a simple body and intersecting construction plane.
+3. Run `SegmentJoinPilot 0.3.5` and confirm the split.
+4. Verify that the split completes without a `Create Group Feature Error`.
+5. Verify that the timeline contains `SJP_Split_001` without a surrounding group.
+6. Verify that the bodies remain named `SJP_Segment_A_001` and `SJP_Segment_B_001`.
+7. Undo the operation and verify that the original body is restored.
+
+Test result: Pending manual retest after removing the unsupported single-feature grouping attempt.
