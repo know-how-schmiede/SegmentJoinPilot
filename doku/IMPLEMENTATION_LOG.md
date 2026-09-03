@@ -637,4 +637,74 @@ Fusion test:
 8. Verify each `_A_` tool extends into Segment A and each `_B_` tool into Segment B, including for an angled plane.
 9. Verify that the segment bodies remain uncut and the connector bodies remain separate.
 
-Test result: Pending Fusion test and project-owner confirmation.
+Test result: Passed in Fusion and confirmed by the project owner. The A/B socket tool
+bodies had the expected diameter and depth and extended into their assigned segments.
+
+## Version 0.4.5
+
+### Step 19 - Cut sockets into both segments
+
+Implemented:
+
+- Updated `version.py` and `SegmentJoinPilot.manifest` to version `0.4.5` as instructed by the project owner.
+- Resolved the existing `SJP_Segment_A_NNN` and `SJP_Segment_B_NNN` bodies for the selected operation.
+- Used each A/B socket tool only on its corresponding segment with Fusion combine cut features.
+- Created one named feature per pocket: `SJP_Socket_A_NNN_II` and `SJP_Socket_B_NNN_II`.
+- Consumed the temporary socket tool bodies while retaining every separate connector body.
+- Added duplicate-name checks for socket cut features.
+- Extended rollback to delete socket cuts before deleting their source tool extrusions and sketches.
+
+Scope limitation:
+
+- Round sockets use the configured radial and depth clearances without lead-ins or chamfers.
+- Connector and socket features are not yet added to the existing operation timeline group.
+- No collision, outer-boundary, or minimum-wall validation is performed yet.
+
+Fusion test:
+
+1. Stop and restart `SegmentJoinPilot`.
+2. Split a solid and enable two diagonal connector candidates.
+3. Use `6 mm` diameter, `12 mm` length, `0.20 mm` radial clearance, and `0.30 mm` depth clearance.
+4. Confirm the command.
+5. Verify that exactly two separate connector bodies remain.
+6. Verify that the temporary `SJP_SocketTool_A/B` bodies are no longer present as bodies.
+7. Verify that four named socket cut features exist: A and B for each selected position.
+8. Hide the connector bodies and measure both segment pockets: `6.40 mm` diameter and `6.30 mm` depth.
+9. Repeat on an angled split plane and verify that both segment pockets align with each connector axis.
+10. Verify that no unselected candidate receives a socket.
+
+Test result: Passed in Fusion and confirmed by the project owner. Both segments received
+the expected clearance-adjusted sockets, temporary tool bodies were consumed, and the
+separate connector bodies remained available.
+
+## Version 0.4.6
+
+### Step 20 - Extend the operation timeline group
+
+Implemented:
+
+- Updated `version.py` and `SegmentJoinPilot.manifest` to version `0.4.6` as instructed by the project owner.
+- Located the existing `SJP_Operation_NNN` timeline group and its corresponding split feature.
+- Replaced the initial split-and-position-sketch group with a group spanning from `SJP_Split_NNN` through the final socket cut.
+- Included connector profiles, connector extrusions, socket profiles, socket tool extrusions, and socket cuts in the same operation group.
+- Preserved all group contents while replacing the group and restores the original range if Fusion cannot create the extended group.
+- Corrected the first Fusion-test failure (`InternalValidationError: res >= 0`) by retaining references to the original child timeline objects, deleting the group, and only then reading their now-valid timeline indices. Timeline groups do not expose the `isExpanded` property used by dialog groups.
+
+Scope limitation:
+
+- The group range is intentionally sequential and therefore includes every timeline item created between the split and final socket cut.
+- Persistent SegmentJoinPilot attributes are not added in this step.
+- Editing an existing operation through stored metadata is not yet implemented.
+
+Fusion test:
+
+1. Stop and restart `SegmentJoinPilot`.
+2. Complete a two-position connector operation.
+3. Verify that exactly one group named `SJP_Operation_NNN` exists for the operation.
+4. Collapse the group and verify that the split, position sketch, connector profiles and bodies, socket profiles, tool extrusions, and four socket cuts are all contained in it.
+5. Expand the group and verify that its first item is `SJP_Split_NNN` and its last item is the final `SJP_Socket_B_NNN_II` feature.
+6. Verify that both segment bodies, separate connector bodies, and socket cuts remain geometrically unchanged.
+
+Test result: Initial Fusion test failed while attempting to read indices from the existing
+group. Index resolution now occurs only after the group is removed; repeated Fusion test
+and project-owner confirmation are pending.

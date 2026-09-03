@@ -2,9 +2,32 @@
 
 Diese Datei enthält die kompakte chronologische Übersicht aller freigegebenen und begonnenen Projektversionen. Ausführliche Implementierungsdetails, Testanleitungen und Testergebnisse werden weiterhin im [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) geführt.
 
-## 2026-09-03 — Version 0.4.4
+## 2026-09-03 — Version 0.4.6
 
 Status: Implementiert; Fusion-Test und Freigabe stehen aus.
+
+- Manifest und `version.py` auf `0.4.6` aktualisiert.
+- Bestehende Timeline-Gruppe vom Split bis zum letzten Socket-Cut erweitert.
+- Profil-Sketches, Verbinderextrusionen, Socket-Werkzeuge und Schnitte gemeinsam im Vorgang organisiert.
+- Wiederherstellung des ursprünglichen Gruppenbereichs bei fehlgeschlagener Erweiterung ergänzt.
+- Fehler aus dem ersten Fusion-Test korrigiert: Indizes der ursprünglichen Gruppenobjekte werden erst nach dem Entfernen der Gruppe gelesen.
+- Persistente Attribute bleiben für den nächsten Organisationsschritt vorgesehen.
+
+
+## 2026-09-03 — Version 0.4.5
+
+Status: In Fusion getestet und vom Projektverantwortlichen freigegeben.
+
+- Manifest und `version.py` auf `0.4.5` aktualisiert.
+- A-/B-Werkzeugkörper mit Combine-Cut jeweils auf das zugehörige Segment angewendet.
+- Pro ausgewählter Position zwei stabil benannte Socket-Cut-Features erzeugt.
+- Temporäre Werkzeugkörper verbraucht und separate Verbinderkörper erhalten.
+- Namensprüfung und Rollback auf Socket-Cut-Features erweitert.
+
+
+## 2026-09-03 — Version 0.4.4
+
+Status: In Fusion getestet und vom Projektverantwortlichen freigegeben.
 
 - Manifest und `version.py` auf `0.4.4` aktualisiert.
 - Tiefenzugabe mit `0,30 mm` Standardwert ergänzt.

@@ -10,7 +10,7 @@ ui = app.userInterface
 
 
 # TODO *** Specify the command identity information. ***
-CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV044'
+CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV046'
 CMD_NAME = f'SegmentJoinPilot {__version__}'
 CMD_Description = 'Split models into printable segments and add alignment connectors.'
 
@@ -143,7 +143,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     inputs.addTextBoxCommandInput(
         'step_scope',
         '',
-        f'Version {__version__} creates separate socket tool bodies for both segments.',
+        f'Version {__version__} groups the complete connector operation in the timeline.',
         2,
         True,
     )
@@ -581,6 +581,13 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
         )
         for index in range(1, len(points) + 1)
     ]
+    socket_feature_names = [
+        (
+            f'SJP_Socket_A_{operation_suffix}_{index:02d}',
+            f'SJP_Socket_B_{operation_suffix}_{index:02d}',
+        )
+        for index in range(1, len(points) + 1)
+    ]
     existing_names = {
         component.sketches.item(index).name
         for index in range(component.sketches.count)
@@ -609,6 +616,10 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
         component.features.extrudeFeatures.item(index).name
         for index in range(component.features.extrudeFeatures.count)
     }
+    existing_combine_names = {
+        component.features.combineFeatures.item(index).name
+        for index in range(component.features.combineFeatures.count)
+    }
     for connector_name in connector_names:
         if connector_name in existing_body_names or connector_name in existing_extrude_names:
             ui.messageBox(
@@ -622,11 +633,19 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
             if tool_name in existing_body_names or tool_name in existing_extrude_names:
                 ui.messageBox(f'{tool_name} already exists.', CMD_NAME)
                 return
+    for feature_names in socket_feature_names:
+        for feature_name in feature_names:
+            if feature_name in existing_combine_names:
+                ui.messageBox(f'{feature_name} already exists.', CMD_NAME)
+                return
 
     profile_sketches = []
     socket_profile_sketches = []
     connector_extrudes = []
     socket_tool_extrudes = []
+    socket_tool_body_pairs = []
+    socket_cut_features = []
+    extended_timeline_group = None
     try:
         reference_plane = sketch.referencePlane
         if reference_plane is None:
@@ -702,6 +721,7 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
                 adsk.fusion.ExtentDirections.NegativeExtentDirection,
                 adsk.fusion.ExtentDirections.PositiveExtentDirection,
             )
+            tool_bodies = []
             for tool_name, direction in zip(tool_names, directions):
                 socket_extent = adsk.fusion.DistanceExtentDefinition.create(
                     adsk.core.ValueInput.createByReal(socket_depth)
@@ -720,10 +740,54 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
                 if tool_extrude is None or tool_extrude.bodies.count != 1:
                     raise RuntimeError('Fusion could not create one socket tool body.')
                 tool_extrude.name = tool_name
-                tool_extrude.bodies.item(0).name = tool_name
+                tool_body = tool_extrude.bodies.item(0)
+                tool_body.name = tool_name
+                tool_bodies.append(tool_body)
+            socket_tool_body_pairs.append(tuple(tool_bodies))
+
+        segment_a = _body_by_name(component, f'SJP_Segment_A_{operation_suffix}')
+        segment_b = _body_by_name(component, f'SJP_Segment_B_{operation_suffix}')
+        if segment_a is None or segment_b is None:
+            raise RuntimeError('Fusion could not find both SegmentJoinPilot segment bodies.')
+
+        combine_features = component.features.combineFeatures
+        for tool_bodies, feature_names in zip(
+            socket_tool_body_pairs, socket_feature_names
+        ):
+            for target_body, tool_body, feature_name in zip(
+                (segment_a, segment_b), tool_bodies, feature_names
+            ):
+                tools = adsk.core.ObjectCollection.create()
+                tools.add(tool_body)
+                combine_input = combine_features.createInput(target_body, tools)
+                if combine_input is None:
+                    raise RuntimeError('Fusion could not create a socket cut input.')
+                combine_input.operation = adsk.fusion.FeatureOperations.CutFeatureOperation
+                combine_input.isKeepToolBodies = False
+                socket_cut = combine_features.add(combine_input)
+                if socket_cut is None:
+                    raise RuntimeError(f'Fusion could not create {feature_name}.')
+                socket_cut_features.append(socket_cut)
+                socket_cut.name = feature_name
+
+        split_feature = _split_feature_by_name(
+            component, f'SJP_Split_{operation_suffix}'
+        )
+        if split_feature is None:
+            raise RuntimeError('Fusion could not find the operation split feature.')
+        design = adsk.fusion.Design.cast(app.activeProduct)
+        if design is None:
+            raise RuntimeError('The active product is not a Fusion Design.')
+        extended_timeline_group = _replace_operation_timeline_group(
+            design,
+            f'SJP_Operation_{operation_suffix}',
+            split_feature.timelineObject,
+            socket_cut_features[-1].timelineObject,
+        )
 
         ui.messageBox(
-            f'{len(connector_extrudes)} round connector body/bodies created.\n\n'
+            f'{len(connector_extrudes)} connector body/bodies and '
+            f'{len(socket_cut_features)} socket cut(s) created.\n\n'
             f'Selected candidates: {", ".join(str(number) for number in selected_numbers)}\n'
             f'Connector bodies: {connector_names[0]} through {connector_names[-1]}\n'
             f'Diameter: {diameter_input.expression}\n'
@@ -733,6 +797,11 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
             CMD_NAME,
         )
     except Exception as error:
+        if extended_timeline_group is not None and extended_timeline_group.isValid:
+            extended_timeline_group.deleteMe(False)
+        for socket_cut_feature in reversed(socket_cut_features):
+            if socket_cut_feature.isValid:
+                socket_cut_feature.deleteMe()
         for socket_tool_extrude in reversed(socket_tool_extrudes):
             if socket_tool_extrude.isValid:
                 socket_tool_extrude.deleteMe()
@@ -749,7 +818,7 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
             f'Round connector profile failed: {error}', adsk.core.LogLevels.ErrorLogLevel
         )
         ui.messageBox(
-            f'The round connector profile could not be created.\n\n{error}', CMD_NAME
+            f'The connector operation could not be created.\n\n{error}', CMD_NAME
         )
 
 
@@ -761,6 +830,60 @@ def _position_coordinates(sketch: adsk.fusion.Sketch, point: adsk.fusion.SketchP
             f'Fusion could not transform point {point.entityToken} into model space.'
         )
     return sketch_position, model_position
+
+
+def _body_by_name(component: adsk.fusion.Component, name: str):
+    for index in range(component.bRepBodies.count):
+        body = component.bRepBodies.item(index)
+        if body.name == name:
+            return body
+    return None
+
+
+def _split_feature_by_name(component: adsk.fusion.Component, name: str):
+    split_features = component.features.splitBodyFeatures
+    for index in range(split_features.count):
+        split_feature = split_features.item(index)
+        if split_feature.name == name:
+            return split_feature
+    return None
+
+
+def _replace_operation_timeline_group(design, group_name, start_object, end_object):
+    timeline_groups = design.timeline.timelineGroups
+    existing_group = None
+    for index in range(timeline_groups.count):
+        candidate = timeline_groups.item(index)
+        if candidate.name == group_name:
+            existing_group = candidate
+            break
+
+    if existing_group is None:
+        raise RuntimeError(f'Fusion could not find timeline group {group_name}.')
+
+    old_start_object = existing_group.item(0)
+    old_end_object = existing_group.item(existing_group.count - 1)
+    if not existing_group.deleteMe(False):
+        raise RuntimeError(f'Fusion could not expand and replace {group_name}.')
+
+    old_start_index = old_start_object.index
+    old_end_index = old_end_object.index
+    start_index = start_object.index
+    end_index = end_object.index
+    if start_index < 0 or end_index < start_index:
+        restored_group = timeline_groups.add(old_start_index, old_end_index)
+        if restored_group is not None:
+            restored_group.name = group_name
+        raise RuntimeError('Fusion returned invalid timeline indices for the operation.')
+
+    replacement = timeline_groups.add(start_index, end_index)
+    if replacement is None:
+        restored_group = timeline_groups.add(old_start_index, old_end_index)
+        if restored_group is not None:
+            restored_group.name = group_name
+        raise RuntimeError(f'Fusion could not recreate timeline group {group_name}.')
+    replacement.name = group_name
+    return replacement
 
 
 def _selections_intersect(inputs: adsk.core.CommandInputs) -> bool:
