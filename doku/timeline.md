@@ -2,9 +2,19 @@
 
 Diese Datei enthält die kompakte chronologische Übersicht aller freigegebenen und begonnenen Projektversionen. Ausführliche Implementierungsdetails, Testanleitungen und Testergebnisse werden weiterhin im [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) geführt.
 
-## 2026-09-03 — Version 0.5.0
+## 2026-09-03 — Version 0.5.1
 
 Status: Implementiert; Fusion-Test und Freigabe stehen aus.
+
+- Manifest, `version.py`, Command-ID und Installer auf `0.5.1` aktualisiert.
+- Profilform `Rounded rectangle` mit dynamischer Höhe und dynamischem Eckradius ergänzt.
+- Profil aus vier Geraden und vier Viertelkreisbögen aufgebaut.
+- Socket-Kontur mit gleichmäßigem radialem Spiel an Geraden und Rundungen umgesetzt.
+- Fasen-, Schnitt-, Rollback-, Timeline- und Metadaten-Pipeline wiederverwendet.
+
+## 2026-09-03 — Version 0.5.0
+
+Status: In Fusion getestet und vom Projektverantwortlichen freigegeben.
 
 - Manifest, `version.py`, Command-ID und Installer auf `0.5.0` aktualisiert.
 - Kompaktes Markenbanner als vollbreites Bild oben in den Befehlsdialog integriert.

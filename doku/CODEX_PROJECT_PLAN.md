@@ -214,6 +214,12 @@ Autodesk-Fusion-Plug-ins als Ausgangsbasis verwendet werden.
   dass Installer, `version.py` und `*.manifest` dieselbe freigegebene Version verwenden.
 - Die fertige, versionsgebundene EXE wird unter
   `installer/dist/<PluginName>-Setup-<Version>.exe` erzeugt.
+- Der Installer wird nur nach ausdrücklicher Aufforderung des Projektverantwortlichen
+  kompiliert beziehungsweise neu gebaut. Eine Versionsänderung oder funktionale
+  Änderung allein ist keine Freigabe zum Erzeugen einer neuen EXE.
+- Ohne ausdrücklichen Build-Auftrag dürfen Installer-Definition und dokumentierte
+  Versionsangaben vorbereitet werden; vorhandene Dateien unter `installer/dist/`
+  bleiben jedoch unverändert.
 - Die Inno-Setup-`AppId` bleibt über alle Versionen desselben Plug-ins stabil, damit
   Updates und Deinstallation derselben Anwendung zugeordnet werden.
 - Eine normale Einzelplatzinstallation erfolgt benutzerbezogen mit

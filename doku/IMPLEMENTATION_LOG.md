@@ -893,4 +893,39 @@ Fusion test:
 6. Verify lead-in chamfers at both connector ends, stable names, `shape=Oval` metadata, and inclusion in the operation timeline group.
 7. Repeat one operation with `Round` and one with `D-shaped` to check for regressions.
 
+Test result: Passed in Fusion and confirmed by the project owner. The dialog banner
+and oval connector pipeline worked as expected.
+
+## Version 0.5.1
+
+### Step 27 - Add rounded-rectangle connectors
+
+Implemented:
+
+- Updated `version.py`, Fusion manifest, command ID, README installer names, and Inno Setup definition to version `0.5.1`.
+- Added `Rounded rectangle` to the connector shape selector.
+- Reused the width and height fields and added a dynamically visible `Corner radius` input with a `1 mm` default.
+- Validated positive width, height, and corner radius and required the corner radius to remain smaller than both half-dimensions.
+- Constructed each profile from four straight segments and four quarter-circle corners.
+- Enlarged socket half-width and half-height by the radial clearance and enlarged its corner radius by the same amount, maintaining a uniform contour offset.
+- Applied the existing symmetric extrusion, lead-in chamfer, socket cuts, rollback, stable naming, timeline grouping, and persistent metadata pipeline.
+- Stored width, height, corner radius, shape, and fit values on generated entities.
+
+Scope limitation:
+
+- Rounded rectangles follow the local X/Y axes of the position sketch and cannot yet be rotated independently.
+- A zero corner radius is intentionally rejected; use a future rectangular profile if sharp corners are required.
+- Hexagon remains the final planned additional profile.
+
+Fusion test:
+
+1. Stop and restart SegmentJoinPilot 0.5.1 and select two connector positions.
+2. Choose `Rounded rectangle` and retain `6 mm` width, `4 mm` height, `1 mm` corner radius, `12 mm` length, `1 mm` lead-in, `0.20 mm` radial clearance, and `0.30 mm` depth clearance.
+3. Verify that height and corner-radius fields are visible only for the applicable shape.
+4. Complete the operation and verify two separate rounded-rectangle connectors and four matching socket cuts.
+5. Verify uniform clearance along straight sides and rounded corners.
+6. Verify both end chamfers, stable feature names, `shape=Rounded rectangle` and corner-radius metadata, and timeline grouping.
+7. Enter a corner radius of `2 mm` for a `4 mm` height and verify that confirmation is rejected.
+8. Repeat with Round, D-shaped, and Oval to check for regressions.
+
 Test result: Pending Fusion test and project-owner confirmation.

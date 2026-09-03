@@ -11,7 +11,7 @@ ui = app.userInterface
 
 
 # TODO *** Specify the command identity information. ***
-CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV050'
+CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV051'
 CMD_NAME = f'SegmentJoinPilot {__version__}'
 CMD_Description = 'Split models into printable segments and add alignment connectors.'
 
@@ -148,7 +148,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     inputs.addTextBoxCommandInput(
         'step_scope',
         '',
-        f'Version {__version__} adds oval connectors and matching sockets.',
+        f'Version {__version__} adds rounded-rectangle connectors and sockets.',
         2,
         True,
     )
@@ -188,6 +188,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     shape_input.listItems.add('Round', True, '')
     shape_input.listItems.add('D-shaped', False, '')
     shape_input.listItems.add('Oval', False, '')
+    shape_input.listItems.add('Rounded rectangle', False, '')
     connector_inputs.addValueInput(
         'connector_diameter',
         'Width / diameter',
@@ -201,6 +202,13 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
         adsk.core.ValueInput.createByString('4 mm'),
     )
     height_input.isVisible = False
+    corner_radius_input = connector_inputs.addValueInput(
+        'connector_corner_radius',
+        'Corner radius',
+        'mm',
+        adsk.core.ValueInput.createByString('1 mm'),
+    )
+    corner_radius_input.isVisible = False
     connector_inputs.addValueInput(
         'connector_length',
         'Total length',
@@ -250,6 +258,7 @@ def command_validate_inputs(args: adsk.core.ValidateInputsEventArgs):
         sketch_input = inputs.itemById('position_sketch')
         diameter_input = inputs.itemById('connector_diameter')
         height_input = inputs.itemById('connector_height')
+        corner_radius_input = inputs.itemById('connector_corner_radius')
         length_input = inputs.itemById('connector_length')
         lead_in_input = inputs.itemById('lead_in_length')
         clearance_input = inputs.itemById('radial_clearance')
@@ -257,7 +266,7 @@ def command_validate_inputs(args: adsk.core.ValidateInputsEventArgs):
         shape = _selected_connector_shape(inputs)
         profile_half_size = (
             min(diameter_input.value, height_input.value) / 2
-            if shape == 'Oval'
+            if shape in ('Oval', 'Rounded rectangle')
             and diameter_input is not None
             and diameter_input.value > 0
             and height_input is not None
@@ -274,8 +283,19 @@ def command_validate_inputs(args: adsk.core.ValidateInputsEventArgs):
             and bool(_selected_position_points(inputs))
             and diameter_input is not None
             and diameter_input.value > 0
-            and shape in ('Round', 'D-shaped', 'Oval')
-            and (shape != 'Oval' or (height_input is not None and height_input.value > 0))
+            and shape in ('Round', 'D-shaped', 'Oval', 'Rounded rectangle')
+            and (
+                shape not in ('Oval', 'Rounded rectangle')
+                or (height_input is not None and height_input.value > 0)
+            )
+            and (
+                shape != 'Rounded rectangle'
+                or (
+                    corner_radius_input is not None
+                    and corner_radius_input.value > 0
+                    and corner_radius_input.value < profile_half_size
+                )
+            )
             and length_input is not None
             and length_input.value > 0
             and lead_in_input is not None
@@ -311,9 +331,13 @@ def command_input_changed(args: adsk.core.InputChangedEventArgs):
         return
 
     if args.input.id == 'connector_shape':
+        shape = _selected_connector_shape(args.inputs)
         height_input = args.inputs.itemById('connector_height')
         if height_input is not None:
-            height_input.isVisible = _selected_connector_shape(args.inputs) == 'Oval'
+            height_input.isVisible = shape in ('Oval', 'Rounded rectangle')
+        corner_radius_input = args.inputs.itemById('connector_corner_radius')
+        if corner_radius_input is not None:
+            corner_radius_input.isVisible = shape == 'Rounded rectangle'
         return
 
     if args.input.id == 'position_sketch':
@@ -585,6 +609,7 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
     shape_input = inputs.itemById('connector_shape')
     diameter_input = inputs.itemById('connector_diameter')
     height_input = inputs.itemById('connector_height')
+    corner_radius_input = inputs.itemById('connector_corner_radius')
     length_input = inputs.itemById('connector_length')
     lead_in_input = inputs.itemById('lead_in_length')
     clearance_input = inputs.itemById('radial_clearance')
@@ -597,7 +622,7 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
     half_width = diameter_input.value / 2 if diameter_input is not None else 0
     half_height = (
         height_input.value / 2
-        if shape == 'Oval' and height_input is not None
+        if shape in ('Oval', 'Rounded rectangle') and height_input is not None
         else half_width
     )
     profile_half_size = min(half_width, half_height)
@@ -605,10 +630,21 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
     if (
         sketch is None
         or not points
-        or shape not in ('Round', 'D-shaped', 'Oval')
+        or shape not in ('Round', 'D-shaped', 'Oval', 'Rounded rectangle')
         or diameter_input is None
         or diameter_input.value <= 0
-        or (shape == 'Oval' and (height_input is None or height_input.value <= 0))
+        or (
+            shape in ('Oval', 'Rounded rectangle')
+            and (height_input is None or height_input.value <= 0)
+        )
+        or (
+            shape == 'Rounded rectangle'
+            and (
+                corner_radius_input is None
+                or corner_radius_input.value <= 0
+                or corner_radius_input.value >= profile_half_size
+            )
+        )
         or length_input is None
         or length_input.value <= 0
         or lead_in_input is None
@@ -761,7 +797,16 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
                 raise RuntimeError('Fusion could not transform a profile center.')
 
             _add_connector_profile(
-                profile_sketch, profile_center, radius, shape, half_height=half_height
+                profile_sketch,
+                profile_center,
+                radius,
+                shape,
+                half_height=half_height,
+                corner_radius=(
+                    corner_radius_input.value
+                    if shape == 'Rounded rectangle'
+                    else None
+                ),
             )
             profile_sketch.isLightBulbOn = True
 
@@ -823,6 +868,11 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
                 shape,
                 clearance_input.value,
                 half_height + clearance_input.value,
+                (
+                    corner_radius_input.value + clearance_input.value
+                    if shape == 'Rounded rectangle'
+                    else None
+                ),
             )
             socket_profile_sketch.isLightBulbOn = True
             if socket_profile_sketch.profiles.count != 1:
@@ -932,7 +982,16 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
                 connectorIndex=str(index),
                 shape=shape,
                 width=str(diameter_input.value),
-                height=str(height_input.value) if shape == 'Oval' else '',
+                height=(
+                    str(height_input.value)
+                    if shape in ('Oval', 'Rounded rectangle')
+                    else ''
+                ),
+                cornerRadius=(
+                    str(corner_radius_input.value)
+                    if shape == 'Rounded rectangle'
+                    else ''
+                ),
                 clearance=str(clearance_input.value),
                 leadIn=str(lead_in_input.value),
             )
@@ -955,13 +1014,29 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
                 segment='A' if index % 2 == 0 else 'B',
                 shape=shape,
                 width=str(diameter_input.value),
-                height=str(height_input.value) if shape == 'Oval' else '',
+                height=(
+                    str(height_input.value)
+                    if shape in ('Oval', 'Rounded rectangle')
+                    else ''
+                ),
+                cornerRadius=(
+                    str(corner_radius_input.value)
+                    if shape == 'Rounded rectangle'
+                    else ''
+                ),
                 clearance=str(clearance_input.value),
                 depthClearance=str(depth_clearance_input.value),
             )
 
         height_summary = (
-            f'Height: {height_input.expression}\n' if shape == 'Oval' else ''
+            f'Height: {height_input.expression}\n'
+            if shape in ('Oval', 'Rounded rectangle')
+            else ''
+        )
+        corner_summary = (
+            f'Corner radius: {corner_radius_input.expression}\n'
+            if shape == 'Rounded rectangle'
+            else ''
         )
         ui.messageBox(
             f'{len(connector_extrudes)} connector body/bodies and '
@@ -971,6 +1046,7 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
             f'Shape: {shape}\n'
             f'Width / diameter: {diameter_input.expression}\n'
             f'{height_summary}'
+            f'{corner_summary}'
             f'Total length: {length_input.expression}\n'
             f'Lead-in chamfer: {lead_in_input.expression}\n'
             f'Radial clearance per side: {clearance_input.expression}\n'
@@ -1010,12 +1086,24 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
 
 
 def _add_connector_profile(
-    sketch, center, radius, shape, flat_offset=0.0, half_height=None
+    sketch,
+    center,
+    radius,
+    shape,
+    flat_offset=0.0,
+    half_height=None,
+    corner_radius=None,
 ):
     if shape == 'Round':
         circle = sketch.sketchCurves.sketchCircles.addByCenterRadius(center, radius)
         if circle is None:
             raise RuntimeError('Fusion could not create a round connector profile.')
+        return
+
+    if shape == 'Rounded rectangle':
+        _add_rounded_rectangle_profile(
+            sketch, center, radius, half_height, corner_radius
+        )
         return
 
     if shape == 'Oval':
@@ -1069,6 +1157,55 @@ def _add_connector_profile(
     )
     if flat is None:
         raise RuntimeError('Fusion could not create the D-shaped profile flat side.')
+
+
+def _add_rounded_rectangle_profile(
+    sketch, center, half_width, half_height, corner_radius
+):
+    if (
+        half_height is None
+        or corner_radius is None
+        or half_width <= 0
+        or half_height <= 0
+        or corner_radius <= 0
+        or corner_radius >= min(half_width, half_height)
+    ):
+        raise RuntimeError('The rounded-rectangle dimensions are invalid.')
+
+    cx, cy, cz = center.x, center.y, center.z
+    arcs = sketch.sketchCurves.sketchArcs
+    quarter_turn = math.pi / 2
+    arc_specs = (
+        ((cx + half_width - corner_radius, cy + half_height - corner_radius),
+         (cx + half_width, cy + half_height - corner_radius)),
+        ((cx - half_width + corner_radius, cy + half_height - corner_radius),
+         (cx - half_width + corner_radius, cy + half_height)),
+        ((cx - half_width + corner_radius, cy - half_height + corner_radius),
+         (cx - half_width, cy - half_height + corner_radius)),
+        ((cx + half_width - corner_radius, cy - half_height + corner_radius),
+         (cx + half_width - corner_radius, cy - half_height)),
+    )
+    rounded_corners = []
+    for (center_x, center_y), (start_x, start_y) in arc_specs:
+        arc = arcs.addByCenterStartSweep(
+            adsk.core.Point3D.create(center_x, center_y, cz),
+            adsk.core.Point3D.create(start_x, start_y, cz),
+            quarter_turn,
+        )
+        if arc is None:
+            raise RuntimeError('Fusion could not create a rounded corner.')
+        rounded_corners.append(arc)
+
+    lines = sketch.sketchCurves.sketchLines
+    connections = (
+        (rounded_corners[0].endSketchPoint, rounded_corners[1].startSketchPoint),
+        (rounded_corners[1].endSketchPoint, rounded_corners[2].startSketchPoint),
+        (rounded_corners[2].endSketchPoint, rounded_corners[3].startSketchPoint),
+        (rounded_corners[3].endSketchPoint, rounded_corners[0].startSketchPoint),
+    )
+    for start_point, end_point in connections:
+        if lines.addByTwoPoints(start_point, end_point) is None:
+            raise RuntimeError('Fusion could not close the rounded-rectangle profile.')
 
 
 def _extrude_end_edges(extrude_feature):
