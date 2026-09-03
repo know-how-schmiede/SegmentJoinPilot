@@ -24,6 +24,18 @@ The add-in is intended for makers, educators, model builders, and FDM users who 
 6. Generate matching sockets in both segments and retain the connectors as separate bodies.
 7. Keep all generated features organized and named in the Fusion timeline.
 
+## Version 0.6.0 in action
+
+Version 0.6.0 automatically follows the Fusion UI language and provides English, German, French, Spanish, and Polish interfaces.
+
+| Add-in and split operation | Position selection and shapes |
+| --- | --- |
+| ![SegmentJoinPilot 0.6.0 in the Fusion menu](images/screenshots/SegmentJointPilot_v060_2.png) | ![Localized connector shape selection](images/screenshots/SegmentJointPilot_v060_6.png) |
+| ![Localized split-operation dialog](images/screenshots/SegmentJointPilot_v060_3.png) | ![Selected position points with red markers](images/screenshots/SegmentJointPilot_v060_5.png) |
+| ![Dimensioned position sketch](images/screenshots/SegmentJointPilot_v060_4.png) | ![Generated hexagonal connector](images/screenshots/SegmentJointPilot_v060_7.png) |
+
+![Multiple connector shapes generated with SegmentJoinPilot](images/screenshots/SegmentJointPilot_v060_1.png)
+
 ## Planned connector shapes
 
 - Round
@@ -78,7 +90,7 @@ SegmentJoinPilot/
 
 ## Installation
 
-On Windows, close Autodesk Fusion and run `SegmentJoinPilot-Setup-0.5.1.exe`. The installer copies the add-in to `%APPDATA%\Autodesk\Autodesk Fusion 360\API\AddIns\SegmentJoinPilot` and does not require administrator rights. Restart Fusion and open **Utilities > Scripts and Add-Ins** if the add-in is not started automatically.
+On Windows, close Autodesk Fusion and run `SegmentJoinPilot-Setup-0.6.0.exe`. The installer copies the add-in to `%APPDATA%\Autodesk\Autodesk Fusion 360\API\AddIns\SegmentJoinPilot` and does not require administrator rights. Restart Fusion and open **Utilities > Scripts and Add-Ins** if the add-in is not started automatically.
 
 For development, the `fusion_addin/SegmentJoinPilot` folder can still be registered manually through Fusion's **Scripts and Add-Ins** dialog. Reproducible installer build instructions are available in [`installer/README.md`](installer/README.md).
 

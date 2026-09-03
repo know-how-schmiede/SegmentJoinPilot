@@ -2,9 +2,20 @@
 
 Diese Datei enthält die kompakte chronologische Übersicht aller freigegebenen und begonnenen Projektversionen. Ausführliche Implementierungsdetails, Testanleitungen und Testergebnisse werden weiterhin im [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) geführt.
 
+## 2026-09-03 — Version 0.6.0
+
+Status: Implementiert; Fusion-Sprach- und Regressionstest stehen aus.
+
+- Zentrale Lokalisierung für Deutsch, Englisch, Französisch, Spanisch und Polnisch ergänzt.
+- Fusion-Oberflächensprache wird automatisch erkannt; Englisch dient als Fallback.
+- Übersetzte Formnamen werden auf stabile interne Shape-Werte abgebildet, damit Geometrie und Metadaten kompatibel bleiben.
+- Sieben neue Screenshots nach dem Schema `SegmentJointPilot_v060_#` benannt und in beide README-Dateien integriert.
+- Installer `SegmentJoinPilot-Setup-0.6.0.exe` nach ausdrücklicher Aufforderung gebaut und Version sowie SHA-256-Prüfsumme geprüft.
+- SHA-256: `A14DBA238B5F3842C9154A632D8A9B1A8FCB033D2DBED2051D21E1930C76BCAB`; der Installer ist nicht digital signiert.
+
 ## 2026-09-03 — Version 0.5.3
 
-Status: Bugfix implementiert; Fusion-Test und Freigabe stehen aus.
+Status: In Fusion getestet und vom Projektverantwortlichen freigegeben.
 
 - Manifest, `version.py`, Command-ID und Installer-Definition auf `0.5.3` aktualisiert.
 - Fehlende Checkboxen bei erneut ausgewählten bestehenden Positionsskizzen behoben.

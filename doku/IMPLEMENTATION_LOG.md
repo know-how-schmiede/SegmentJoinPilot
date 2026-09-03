@@ -1017,4 +1017,29 @@ Additional Fusion regression test:
 4. Verify matching socket cuts, the selected shape, continued `connectorIndex` metadata, and the extended operation timeline group.
 5. Repeat with another shape and verify numbering continues again without name collisions.
 
-Test result: Checkbox portion passed; append-geometry follow-up pending Fusion test and project-owner confirmation.
+Test result: Passed in Fusion, including checkbox reconstruction and appending additional connector geometry to an existing operation; confirmed by the project owner.
+
+## Version 0.6.0
+
+### Step 30 - Localize the Fusion user interface
+
+Implemented:
+
+- Updated `version.py`, Fusion manifest, command ID, and installer definition to version `0.6.0`.
+- Added a central localization module for English, German, French, Spanish, and Polish.
+- Detects Fusion's current UI language through its general preferences, with an English fallback and an optional `SJP_LANGUAGE` override for testing.
+- Localized the command description, workflow modes, groups, selection prompts, validation status, position list, connector shapes and dimensions, primary success messages, and actionable error messages.
+- Kept canonical connector-shape identifiers in English and mapped localized dropdown labels back to those identifiers, preserving geometry logic and existing metadata compatibility.
+- Renamed the seven version 0.6.0 screenshots to the project-owner naming scheme and added them to both README variants.
+- Prepared the installer definition for 0.6.0 and, following a separate explicit request from the project owner, built `SegmentJoinPilot-Setup-0.6.0.exe`.
+- Verified installer product version `0.6.0`, size `2,776,913` bytes, and SHA-256 `A14DBA238B5F3842C9154A632D8A9B1A8FCB033D2DBED2051D21E1930C76BCAB`.
+- The installer is not digitally signed; Windows SmartScreen may therefore display a warning.
+
+Fusion test:
+
+1. Restart the add-in under each supported Fusion UI language and verify the toolbar description and complete command dialog.
+2. Verify the split workflow, position checkboxes, selected-position list, shape dropdown, dynamic inputs, validation messages, and completion dialogs.
+3. Create one connector of every shape and verify the generated geometry and stored canonical `shape` metadata are unchanged.
+4. Verify an unsupported Fusion language falls back to English.
+
+Test result: Pending Fusion regression test and project-owner confirmation.

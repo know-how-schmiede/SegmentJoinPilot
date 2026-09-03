@@ -5,15 +5,16 @@ import os
 import re
 from ...lib import fusionAddInUtils as futil
 from ... import config
+from ...localization import tr
 from ...version import __version__
 app = adsk.core.Application.get()
 ui = app.userInterface
 
 
 # TODO *** Specify the command identity information. ***
-CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV053'
+CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV060'
 CMD_NAME = f'SegmentJoinPilot {__version__}'
-CMD_Description = 'Split models into printable segments and add alignment connectors.'
+CMD_Description = tr('command_description')
 
 # Specify that the command will be promoted to the panel.
 IS_PROMOTED = True
@@ -35,7 +36,14 @@ DIALOG_BANNER = os.path.join(ICON_FOLDER, 'dialog-banner.png')
 local_handlers = []
 
 WORKFLOW_EVENT_ID = f'{CMD_ID}_workflow'
-SET_POINT_MODE_NAME = 'Set Point'
+SET_POINT_MODE_NAME = tr('set_point')
+SHAPE_LABEL_KEYS = {
+    'Round': 'round',
+    'D-shaped': 'd_shaped',
+    'Oval': 'oval',
+    'Rounded rectangle': 'rounded_rectangle',
+    'Hexagon': 'hexagon',
+}
 _workflow_event = None
 _pending_workflow_action = None
 _workflow_sketch = None
@@ -118,30 +126,30 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     banner_input.isFullWidth = True
 
     mode_input = inputs.addDropDownCommandInput(
-        'operation_mode', 'Mode', adsk.core.DropDownStyles.TextListDropDownStyle
+        'operation_mode', tr('mode'), adsk.core.DropDownStyles.TextListDropDownStyle
     )
     startup_sketch = _startup_set_point_sketch
     _startup_set_point_sketch = None
     start_in_set_point_mode = startup_sketch is not None and startup_sketch.isValid
-    mode_input.listItems.add('Create split operation', not start_in_set_point_mode, '')
+    mode_input.listItems.add(tr('create_split'), not start_in_set_point_mode, '')
     mode_input.listItems.add(SET_POINT_MODE_NAME, start_in_set_point_mode, '')
 
-    split_group = inputs.addGroupCommandInput('split_group', 'Split')
+    split_group = inputs.addGroupCommandInput('split_group', tr('split'))
     split_group.isVisible = not start_in_set_point_mode
     split_inputs = split_group.children
 
     body_input = split_inputs.addSelectionInput(
         'solid_body',
-        'Solid body',
-        'Select one solid body to split.',
+        tr('solid_body'),
+        tr('select_body'),
     )
     body_input.addSelectionFilter('SolidBodies')
     body_input.setSelectionLimits(1, 1)
 
     plane_input = split_inputs.addSelectionInput(
         'construction_plane',
-        'Construction plane',
-        'Select one construction plane as the splitting tool.',
+        tr('construction_plane'),
+        tr('select_plane'),
     )
     plane_input.addSelectionFilter('ConstructionPlanes')
     plane_input.setSelectionLimits(1, 1)
@@ -149,93 +157,90 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     inputs.addTextBoxCommandInput(
         'step_scope',
         '',
-        f'Version {__version__} fixes point selection when reopening a sketch.',
+        tr('scope', version=__version__),
         2,
         True,
     )
     split_inputs.addTextBoxCommandInput(
         'intersection_status',
-        'Validation',
-        'Select a solid body and a construction plane.',
+        tr('validation'),
+        tr('select_body_plane'),
         2,
         True,
     )
 
-    positions_group = inputs.addGroupCommandInput('positions_group', 'Positions')
+    positions_group = inputs.addGroupCommandInput('positions_group', tr('positions'))
     positions_group.isVisible = start_in_set_point_mode
     positions_inputs = positions_group.children
     sketch_input = positions_inputs.addSelectionInput(
-        'position_sketch', 'Position sketch', 'Select an SJP sketch or one of its points.'
+        'position_sketch', tr('position_sketch'), tr('select_sjp_sketch')
     )
     sketch_input.addSelectionFilter('Sketches')
     sketch_input.addSelectionFilter('SketchPoints')
     sketch_input.setSelectionLimits(1 if start_in_set_point_mode else 0, 1)
     point_status = positions_inputs.addTextBoxCommandInput(
-        'point_status', 'Detected points', 'Select a position sketch.', 2, True
+        'point_status', tr('detected_points'), tr('select_position_sketch'), 2, True
     )
     positions_inputs.addTextBoxCommandInput(
         'selected_position_list',
-        'Selected list',
-        'No positions selected.',
+        tr('selected_list'),
+        tr('no_positions'),
         4,
         True,
     )
-    connector_group = inputs.addGroupCommandInput('connector_group', 'Connector')
+    connector_group = inputs.addGroupCommandInput('connector_group', tr('connector'))
     connector_group.isVisible = start_in_set_point_mode
     connector_inputs = connector_group.children
     shape_input = connector_inputs.addDropDownCommandInput(
-        'connector_shape', 'Shape', adsk.core.DropDownStyles.TextListDropDownStyle
+        'connector_shape', tr('shape'), adsk.core.DropDownStyles.TextListDropDownStyle
     )
-    shape_input.listItems.add('Round', True, '')
-    shape_input.listItems.add('D-shaped', False, '')
-    shape_input.listItems.add('Oval', False, '')
-    shape_input.listItems.add('Rounded rectangle', False, '')
-    shape_input.listItems.add('Hexagon', False, '')
+    for index, translation_key in enumerate(SHAPE_LABEL_KEYS.values()):
+        shape_input.listItems.add(tr(translation_key), index == 0, '')
     connector_inputs.addValueInput(
         'connector_diameter',
-        'Width / diameter',
+        tr('width_diameter'),
         'mm',
         adsk.core.ValueInput.createByString('6 mm'),
     )
     height_input = connector_inputs.addValueInput(
         'connector_height',
-        'Height',
+        tr('height'),
         'mm',
         adsk.core.ValueInput.createByString('4 mm'),
     )
     height_input.isVisible = False
     corner_radius_input = connector_inputs.addValueInput(
         'connector_corner_radius',
-        'Corner radius',
+        tr('corner_radius'),
         'mm',
         adsk.core.ValueInput.createByString('1 mm'),
     )
     corner_radius_input.isVisible = False
     connector_inputs.addValueInput(
         'connector_length',
-        'Total length',
+        tr('total_length'),
         'mm',
         adsk.core.ValueInput.createByString('12 mm'),
     )
     connector_inputs.addValueInput(
         'lead_in_length',
-        'Lead-in chamfer',
+        tr('lead_in'),
         'mm',
         adsk.core.ValueInput.createByString('1 mm'),
     )
 
-    fit_group = inputs.addGroupCommandInput('fit_group', 'Fit')
+    fit_group = inputs.addGroupCommandInput('fit_group', tr('fit'))
     fit_group.isVisible = start_in_set_point_mode
     fit_inputs = fit_group.children
     fit_inputs.addValueInput(
         'radial_clearance',
-        'Radial clearance per side',
+        tr('radial_clearance'),
         'mm',
         adsk.core.ValueInput.createByString('0.20 mm'),
     )
     fit_inputs.addValueInput(
         'depth_clearance',
-        'Depth clearance',
+        tr('depth_clearance'),
         'mm',
         adsk.core.ValueInput.createByString('0.30 mm'),
     )
@@ -366,11 +371,11 @@ def command_input_changed(args: adsk.core.InputChangedEventArgs):
     plane_input = args.inputs.itemById('construction_plane')
 
     if body_input.selectionCount != 1 or plane_input.selectionCount != 1:
-        status_input.text = 'Select a solid body and a construction plane.'
+        status_input.text = tr('select_body_plane')
     elif _selections_intersect(args.inputs):
-        status_input.text = 'Valid: the construction plane intersects the solid body.'
+        status_input.text = tr('valid_intersection')
     else:
-        status_input.text = 'Invalid: the construction plane does not intersect the solid body.'
+        status_input.text = tr('invalid_intersection')
 
 
 def _is_inspect_mode(inputs: adsk.core.CommandInputs) -> bool:
@@ -384,10 +389,12 @@ def _is_inspect_mode(inputs: adsk.core.CommandInputs) -> bool:
 
 def _selected_connector_shape(inputs):
     shape_input = inputs.itemById('connector_shape')
-    return (
-        shape_input.selectedItem.name
-        if shape_input is not None and shape_input.selectedItem is not None
-        else None
+    if shape_input is None or shape_input.selectedItem is None:
+        return None
+    selected_label = shape_input.selectedItem.name
+    return next(
+        (shape for shape, key in SHAPE_LABEL_KEYS.items() if selected_label == tr(key)),
+        None,
     )
 
 
@@ -445,7 +452,7 @@ def _rebuild_position_candidate_inputs(inputs, sketch):
         position = point.geometry
         checkbox = candidate_inputs.addBoolValueInput(
             f'{POSITION_CANDIDATE_INPUT_PREFIX}{generation}_{index}',
-            f'Point {index + 1} ({position.x:.3f}, {position.y:.3f} cm)',
+            tr('point', index=index + 1, x=position.x, y=position.y),
             True,
             '',
             True,
@@ -501,7 +508,7 @@ def _update_position_candidate_status(inputs):
     sketch = _selected_position_sketch(inputs.itemById('position_sketch'))
     point_count = len(_position_sketch_points(sketch))
     selected_count = len(_selected_position_points(inputs))
-    new_status = f'{point_count} position point(s) detected; {selected_count} selected.'
+    new_status = tr('point_count', detected=point_count, selected=selected_count)
     if status_input.text != new_status:
         status_input.text = new_status
     selected_list_input = inputs.itemById('selected_position_list')
@@ -509,12 +516,14 @@ def _update_position_candidate_status(inputs):
         selected_entries = _selected_position_entries(inputs)
         selected_text = (
             '\n'.join(
-                f'Point {index}: {point.geometry.x:.3f}, '
-                f'{point.geometry.y:.3f} cm'
+                tr(
+                    'selected_point', index=index,
+                    x=point.geometry.x, y=point.geometry.y,
+                )
                 for index, point in selected_entries
             )
             if selected_entries
-            else 'No positions selected.'
+            else tr('no_positions')
         )
         if selected_list_input.text != selected_text:
             selected_list_input.text = selected_text
@@ -594,13 +603,13 @@ def _update_position_markers(sketch, selected_points):
 def _inspect_position_sketch(inputs: adsk.core.CommandInputs):
     sketch_input = inputs.itemById('position_sketch')
     if sketch_input is None or sketch_input.selectionCount != 1:
-        ui.messageBox('Select one position sketch.', CMD_NAME)
+        ui.messageBox(tr('select_one_sketch'), CMD_NAME)
         return
 
     sketch = _selected_position_sketch(sketch_input)
     points = _selected_position_points(inputs)
     if not points:
-        ui.messageBox('No position points were found.', CMD_NAME)
+        ui.messageBox(tr('no_points_found'), CMD_NAME)
         return
 
     point_lines = []
@@ -674,10 +683,7 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
         or depth_clearance_input.value < 0
     ):
         ui.messageBox(
-            'Select a supported shape and at least one position, enter a positive '
-            'width, height where required, and length, '
-            'use non-negative clearances, and keep the lead-in chamfer smaller '
-            'than both the smallest profile radius and half its total length.',
+            tr('invalid_connector'),
             CMD_NAME,
         )
         return
@@ -685,7 +691,7 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
     name_match = POSITION_SKETCH_NAME_PATTERN.match(sketch.name)
     if name_match is None:
         ui.messageBox(
-            'The selected sketch is not a SegmentJoinPilot position sketch.', CMD_NAME
+            tr('not_sjp_sketch'), CMD_NAME
         )
         return
 
@@ -731,19 +737,11 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
     }
     for profile_name in profile_names:
         if profile_name in existing_names:
-            ui.messageBox(
-                f'{profile_name} already exists. Delete the existing connector profile '
-                'sketches before repeating this test.',
-                CMD_NAME,
-            )
+            ui.messageBox(tr('already_exists', name=profile_name), CMD_NAME)
             return
     for socket_profile_name in socket_profile_names:
         if socket_profile_name in existing_names:
-            ui.messageBox(
-                f'{socket_profile_name} already exists. Delete the existing socket '
-                'profile sketches before repeating this operation.',
-                CMD_NAME,
-            )
+            ui.messageBox(tr('already_exists', name=socket_profile_name), CMD_NAME)
             return
     existing_body_names = {
         component.bRepBodies.item(index).name
@@ -763,26 +761,22 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
     }
     for connector_name in connector_names:
         if connector_name in existing_body_names or connector_name in existing_extrude_names:
-            ui.messageBox(
-                f'{connector_name} already exists. Delete the existing connector '
-                'geometry before repeating this operation.',
-                CMD_NAME,
-            )
+            ui.messageBox(tr('already_exists', name=connector_name), CMD_NAME)
             return
     if lead_in_input.value > 0:
         for chamfer_name in chamfer_names:
             if chamfer_name in existing_chamfer_names:
-                ui.messageBox(f'{chamfer_name} already exists.', CMD_NAME)
+                ui.messageBox(tr('already_exists', name=chamfer_name), CMD_NAME)
                 return
     for tool_names in socket_tool_names:
         for tool_name in tool_names:
             if tool_name in existing_body_names or tool_name in existing_extrude_names:
-                ui.messageBox(f'{tool_name} already exists.', CMD_NAME)
+                ui.messageBox(tr('already_exists', name=tool_name), CMD_NAME)
                 return
     for feature_names in socket_feature_names:
         for feature_name in feature_names:
             if feature_name in existing_combine_names:
-                ui.messageBox(f'{feature_name} already exists.', CMD_NAME)
+                ui.messageBox(tr('already_exists', name=feature_name), CMD_NAME)
                 return
 
     profile_sketches = []
@@ -1054,28 +1048,27 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
             )
 
         height_summary = (
-            f'Height: {height_input.expression}\n'
+            f'{tr("height")}: {height_input.expression}\n'
             if shape in ('Oval', 'Rounded rectangle')
             else ''
         )
         corner_summary = (
-            f'Corner radius: {corner_radius_input.expression}\n'
+            f'{tr("corner_radius")}: {corner_radius_input.expression}\n'
             if shape == 'Rounded rectangle'
             else ''
         )
         ui.messageBox(
-            f'{len(connector_extrudes)} connector body/bodies and '
-            f'{len(socket_cut_features)} socket cut(s) created.\n\n'
-            f'Selected candidates: {", ".join(str(number) for number in selected_numbers)}\n'
-            f'Connector bodies: {connector_names[0]} through {connector_names[-1]}\n'
-            f'Shape: {shape}\n'
-            f'Width / diameter: {diameter_input.expression}\n'
+            tr('connector_success', connectors=len(connector_extrudes), sockets=len(socket_cut_features)) + '\n\n'
+            f'{tr("selected_candidates")}: {", ".join(str(number) for number in selected_numbers)}\n'
+            f'{tr("connector_bodies")}: {connector_names[0]} – {connector_names[-1]}\n'
+            f'{tr("shape")}: {tr(SHAPE_LABEL_KEYS[shape])}\n'
+            f'{tr("width_diameter")}: {diameter_input.expression}\n'
             f'{height_summary}'
             f'{corner_summary}'
-            f'Total length: {length_input.expression}\n'
-            f'Lead-in chamfer: {lead_in_input.expression}\n'
-            f'Radial clearance per side: {clearance_input.expression}\n'
-            f'Depth clearance: {depth_clearance_input.expression}',
+            f'{tr("total_length")}: {length_input.expression}\n'
+            f'{tr("lead_in")}: {lead_in_input.expression}\n'
+            f'{tr("radial_clearance")}: {clearance_input.expression}\n'
+            f'{tr("depth_clearance")}: {depth_clearance_input.expression}',
             CMD_NAME,
         )
     except Exception as error:
@@ -1105,9 +1098,7 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
         futil.log(
             f'Connector geometry failed: {error}', adsk.core.LogLevels.ErrorLogLevel
         )
-        ui.messageBox(
-            f'The connector operation could not be created.\n\n{error}', CMD_NAME
-        )
+        ui.messageBox(tr('connector_failed', error=error), CMD_NAME)
 
 
 def _add_connector_profile(
@@ -1423,11 +1414,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
         return
 
     if not _selections_intersect(inputs):
-        ui.messageBox(
-            'The construction plane does not intersect the selected solid body.\n\n'
-            'Choose a plane that passes through the body and try again.',
-            CMD_NAME,
-        )
+        ui.messageBox(tr('split_no_intersection'), CMD_NAME)
         return
 
     body = adsk.fusion.BRepBody.cast(
@@ -1504,9 +1491,8 @@ def command_execute(args: adsk.core.CommandEventArgs):
 
         _workflow_sketch = position_sketch
         _pending_workflow_action = 'activate_sketch'
-        ui.statusMessage = (
-            f'{CMD_NAME}: split completed. Add position points or sketch geometry to '
-            f'{position_sketch.name}, then select Finish Sketch.'
+        ui.statusMessage = tr(
+            'split_complete', name=CMD_NAME, sketch=position_sketch.name
         )
         futil.log(
             f'Split completed: {original_body_name}, {split_feature.name}, '
@@ -1520,11 +1506,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
         if split_feature is not None and split_feature.isValid:
             split_feature.deleteMe()
         futil.log(f'Split body failed: {error}', adsk.core.LogLevels.ErrorLogLevel)
-        ui.messageBox(
-            f'The body could not be split.\n\n{error}\n\n'
-            'No partial split feature was retained.',
-            CMD_NAME,
-        )
+        ui.messageBox(tr('split_failed', error=error), CMD_NAME)
 
 
 def _classify_split_results(result_bodies, split_plane: adsk.core.Plane):
@@ -1606,12 +1588,12 @@ def workflow_event_received(args: adsk.core.CustomEventArgs):
 
     if action == 'activate_sketch':
         if _workflow_sketch is None or not _workflow_sketch.isValid:
-            ui.messageBox('The newly created position sketch is no longer available.', CMD_NAME)
+            ui.messageBox(tr('new_sketch_unavailable'), CMD_NAME)
             return
 
         sketch_command = ui.commandDefinitions.itemById('SketchActivate')
         if sketch_command is None:
-            ui.messageBox('Fusion could not find the Edit Sketch command.', CMD_NAME)
+            ui.messageBox(tr('edit_command_missing'), CMD_NAME)
             return
 
         ui.activeSelections.clear()
@@ -1619,23 +1601,23 @@ def workflow_event_received(args: adsk.core.CustomEventArgs):
         _waiting_for_sketch_finish = True
         if not sketch_command.execute():
             _waiting_for_sketch_finish = False
-            ui.messageBox('Fusion could not open the position sketch for editing.', CMD_NAME)
+            ui.messageBox(tr('open_sketch_failed'), CMD_NAME)
         return
 
     if action == 'reopen_set_point':
         if _workflow_sketch is None or not _workflow_sketch.isValid:
-            ui.messageBox('The position sketch is no longer available.', CMD_NAME)
+            ui.messageBox(tr('sketch_unavailable'), CMD_NAME)
             return
 
         command_definition = ui.commandDefinitions.itemById(CMD_ID)
         if command_definition is None:
-            ui.messageBox('SegmentJoinPilot could not be restarted.', CMD_NAME)
+            ui.messageBox(tr('restart_failed'), CMD_NAME)
             return
 
         _startup_set_point_sketch = _workflow_sketch
         if not command_definition.execute():
             _startup_set_point_sketch = None
-            ui.messageBox('SegmentJoinPilot could not be restarted.', CMD_NAME)
+            ui.messageBox(tr('restart_failed'), CMD_NAME)
 
 
 def user_interface_command_terminated(args: adsk.core.ApplicationCommandEventArgs):

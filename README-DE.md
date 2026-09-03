@@ -24,6 +24,18 @@ Das Add-in richtet sich an Maker, Lehrende, Modellbauer und FDM-Anwender, die Mo
 6. Passende Aufnahmen in beiden Segmenten erzeugen und die Verbinder als separate Körper beibehalten.
 7. Alle erzeugten Elemente in der Fusion-Zeitleiste strukturiert und eindeutig benannt ablegen.
 
+## Einblicke in Version 0.6.0
+
+Version 0.6.0 bietet eine automatisch an die Fusion-Sprache angepasste Oberfläche auf Deutsch, Englisch, Französisch, Spanisch und Polnisch.
+
+| Add-in und Teilung | Positionsauswahl und Formen |
+| --- | --- |
+| ![SegmentJoinPilot 0.6.0 im Fusion-Menü](images/screenshots/SegmentJointPilot_v060_2.png) | ![Lokalisierte Auswahl der Verbinderform](images/screenshots/SegmentJointPilot_v060_6.png) |
+| ![Lokalisierter Dialog zum Erstellen einer Teilung](images/screenshots/SegmentJointPilot_v060_3.png) | ![Ausgewählte Positionspunkte mit roten Markierungen](images/screenshots/SegmentJointPilot_v060_5.png) |
+| ![Positionsskizze mit Bemaßungen](images/screenshots/SegmentJointPilot_v060_4.png) | ![Erzeugter sechseckiger Verbinder](images/screenshots/SegmentJointPilot_v060_7.png) |
+
+![Mehrere mit SegmentJoinPilot erzeugte Verbinderformen](images/screenshots/SegmentJointPilot_v060_1.png)
+
 ## Geplante Verbinderformen
 
 - Rund
@@ -78,7 +90,7 @@ SegmentJoinPilot/
 
 ## Installation
 
-Unter Windows Autodesk Fusion schließen und `SegmentJoinPilot-Setup-0.5.1.exe` ausführen. Der Installer kopiert das Add-in ohne Administratorrechte nach `%APPDATA%\Autodesk\Autodesk Fusion 360\API\AddIns\SegmentJoinPilot`. Anschließend Fusion neu starten und bei Bedarf **Dienstprogramme > Skripte und Zusatzmodule** öffnen.
+Unter Windows Autodesk Fusion schließen und `SegmentJoinPilot-Setup-0.6.0.exe` ausführen. Der Installer kopiert das Add-in ohne Administratorrechte nach `%APPDATA%\Autodesk\Autodesk Fusion 360\API\AddIns\SegmentJoinPilot`. Anschließend Fusion neu starten und bei Bedarf **Dienstprogramme > Skripte und Zusatzmodule** öffnen.
 
 Für die Entwicklung kann der Ordner `fusion_addin/SegmentJoinPilot` weiterhin manuell über den Fusion-Dialog **Skripte und Zusatzmodule** registriert werden. Die reproduzierbare Erstellung des Installers ist in [`installer/README.md`](installer/README.md) beschrieben.
 

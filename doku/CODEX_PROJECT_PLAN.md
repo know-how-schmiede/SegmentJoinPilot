@@ -352,8 +352,9 @@ Die folgenden Phasen sind eine Reihenfolge, keine zusammenhängenden Implementie
 - Installation, Update und Deinstallation auf mindestens einer realen Fusion-Installation testen
 - Installer-Buildausgaben ignorieren und Versionierbarkeit der Installer-Quellen mit `git check-ignore` prüfen
 - SHA-256-Prüfsumme erzeugen und Signaturstatus dokumentieren
-- Englische Oberflächentexte auf Vollständigkeit und zentrale Ablage prüfen
-- Lokalisierungsstruktur für die späteren Sprachen Deutsch, Französisch, Spanisch und Polnisch vorbereiten, ohne diese Übersetzungen vorzeitig umzusetzen
+- Oberflächentexte zentral ablegen und auf Vollständigkeit prüfen
+- Die Fusion-Oberflächensprache automatisch erkennen und Deutsch, Englisch, Französisch, Spanisch und Polnisch mit englischem Fallback bereitstellen
+- Technische Schlüsselwerte wie Profilformen unabhängig von übersetzten Anzeigetexten halten, damit bestehende Dokumente kompatibel bleiben
 - Changelog und Release-Paket vorbereiten
 - Eine neue, vom Projektverantwortlichen vorgegebene Versionsnummer gleichzeitig in `version.py` und `*.manifest` eintragen und die Konsistenz testen
 
