@@ -844,4 +844,53 @@ Installer correction after the first manual test:
 - Added cleanup of the exact obsolete SegmentJoinPilot directory created by the incorrect installer.
 - Rebuilt the installer without changing version `0.4.9`.
 
-Correction test: Build verification passed; corrected installation in Fusion pending.
+Correction test: Passed. The corrected installer places the add-in in the working
+Fusion 360 add-in directory and was confirmed by the project owner.
+
+## Version 0.5.0
+
+### Step 25 - Integrate the project banner into the command dialog
+
+Implemented:
+
+- Updated `version.py`, the Fusion manifest, command ID, and installer definition to version `0.5.0`.
+- Derived a compact `400 x 133` PNG dialog banner from the existing SegmentJoinPilot brand banner without replacing the large README asset.
+- Stored the dialog asset at `commands/commandDialog/resources_v020/dialog-banner.png` so it is included in the add-in and installer package.
+- Added a full-width `ImageCommandInput` at the top of the Fusion command dialog.
+- Increased the initial dialog dimensions to accommodate the banner and existing controls.
+
+Fusion test:
+
+1. Stop and restart SegmentJoinPilot 0.5.0.
+2. Open the command and verify that the complete banner is visible at the top without cropping.
+3. Switch between both modes and verify that the banner remains visible and the controls remain usable.
+
+### Step 26 - Add oval connectors
+
+Implemented:
+
+- Added `Oval` to the connector shape selector.
+- Renamed the primary size field to `Width / diameter` and added a `Height` field with a `4 mm` default.
+- Displayed the height input only while `Oval` is selected.
+- Created oval connector and socket profiles using Fusion sketch ellipses.
+- Expanded oval socket width and height by the radial clearance on both sides.
+- Applied the existing extrusion, lead-in chamfer, socket cutting, rollback, timeline grouping, and naming pipeline to oval geometry.
+- Restricted the lead-in distance to less than the smaller oval half-axis and half the total connector length.
+- Stored oval width, height, shape, and existing fit values in persistent metadata.
+
+Scope limitation:
+
+- Oval axes follow the local X/Y axes of the position sketch and cannot yet be rotated independently.
+- Rounded rectangle and hexagon remain future individual profile steps.
+
+Fusion test:
+
+1. Select two connector positions and choose `Oval`.
+2. Retain `6 mm` width, `4 mm` height, `12 mm` length, `1 mm` lead-in, `0.20 mm` radial clearance, and `0.30 mm` depth clearance.
+3. Verify that the height field is visible for `Oval` and hidden again for `Round` or `D-shaped`.
+4. Complete the operation and verify two separate oval connectors and four matching oval socket cuts.
+5. Verify that each socket measures `0.20 mm` clearance per side along both ellipse axes.
+6. Verify lead-in chamfers at both connector ends, stable names, `shape=Oval` metadata, and inclusion in the operation timeline group.
+7. Repeat one operation with `Round` and one with `D-shaped` to check for regressions.
+
+Test result: Pending Fusion test and project-owner confirmation.

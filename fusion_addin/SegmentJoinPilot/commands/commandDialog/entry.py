@@ -11,7 +11,7 @@ ui = app.userInterface
 
 
 # TODO *** Specify the command identity information. ***
-CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV049'
+CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV050'
 CMD_NAME = f'SegmentJoinPilot {__version__}'
 CMD_Description = 'Split models into printable segments and add alignment connectors.'
 
@@ -28,6 +28,7 @@ COMMAND_BESIDE_ID = ''
 
 # Resource location for command icons, here we assume a sub folder in this directory named "resources".
 ICON_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources_v020', '')
+DIALOG_BANNER = os.path.join(ICON_FOLDER, 'dialog-banner.png')
 
 # Local list of event handlers used to maintain a reference so
 # they are not released and garbage collected.
@@ -109,8 +110,11 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     # General logging for debug.
     futil.log(f'{CMD_NAME} Command Created Event')
 
-    args.command.setDialogInitialSize(420, 260)
+    args.command.setDialogInitialSize(440, 400)
     inputs = args.command.commandInputs
+
+    banner_input = inputs.addImageCommandInput('dialog_banner', '', DIALOG_BANNER)
+    banner_input.isFullWidth = True
 
     mode_input = inputs.addDropDownCommandInput(
         'operation_mode', 'Mode', adsk.core.DropDownStyles.TextListDropDownStyle
@@ -144,7 +148,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     inputs.addTextBoxCommandInput(
         'step_scope',
         '',
-        f'Version {__version__} adds D-shaped connectors and matching sockets.',
+        f'Version {__version__} adds oval connectors and matching sockets.',
         2,
         True,
     )
@@ -183,12 +187,20 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     )
     shape_input.listItems.add('Round', True, '')
     shape_input.listItems.add('D-shaped', False, '')
+    shape_input.listItems.add('Oval', False, '')
     connector_inputs.addValueInput(
         'connector_diameter',
-        'Diameter',
+        'Width / diameter',
         'mm',
         adsk.core.ValueInput.createByString('6 mm'),
     )
+    height_input = connector_inputs.addValueInput(
+        'connector_height',
+        'Height',
+        'mm',
+        adsk.core.ValueInput.createByString('4 mm'),
+    )
+    height_input.isVisible = False
     connector_inputs.addValueInput(
         'connector_length',
         'Total length',
@@ -237,21 +249,38 @@ def command_validate_inputs(args: adsk.core.ValidateInputsEventArgs):
         _update_position_candidate_status(inputs)
         sketch_input = inputs.itemById('position_sketch')
         diameter_input = inputs.itemById('connector_diameter')
+        height_input = inputs.itemById('connector_height')
         length_input = inputs.itemById('connector_length')
         lead_in_input = inputs.itemById('lead_in_length')
         clearance_input = inputs.itemById('radial_clearance')
         depth_clearance_input = inputs.itemById('depth_clearance')
+        shape = _selected_connector_shape(inputs)
+        profile_half_size = (
+            min(diameter_input.value, height_input.value) / 2
+            if shape == 'Oval'
+            and diameter_input is not None
+            and diameter_input.value > 0
+            and height_input is not None
+            and height_input.value > 0
+            else diameter_input.value / 2
+            if shape in ('Round', 'D-shaped')
+            and diameter_input is not None
+            and diameter_input.value > 0
+            else 0
+        )
         args.areInputsValid = (
             sketch_input is not None
             and sketch_input.selectionCount == 1
             and bool(_selected_position_points(inputs))
             and diameter_input is not None
             and diameter_input.value > 0
+            and shape in ('Round', 'D-shaped', 'Oval')
+            and (shape != 'Oval' or (height_input is not None and height_input.value > 0))
             and length_input is not None
             and length_input.value > 0
             and lead_in_input is not None
             and lead_in_input.value >= 0
-            and lead_in_input.value < diameter_input.value / 2
+            and lead_in_input.value < profile_half_size
             and lead_in_input.value < length_input.value / 2
             and clearance_input is not None
             and clearance_input.value >= 0
@@ -279,6 +308,12 @@ def command_input_changed(args: adsk.core.InputChangedEventArgs):
         root_inputs.itemById('position_sketch').setSelectionLimits(
             1 if inspect_mode else 0, 1
         )
+        return
+
+    if args.input.id == 'connector_shape':
+        height_input = args.inputs.itemById('connector_height')
+        if height_input is not None:
+            height_input.isVisible = _selected_connector_shape(args.inputs) == 'Oval'
         return
 
     if args.input.id == 'position_sketch':
@@ -315,6 +350,15 @@ def _is_inspect_mode(inputs: adsk.core.CommandInputs) -> bool:
         mode_input is not None
         and mode_input.selectedItem is not None
         and mode_input.selectedItem.name == SET_POINT_MODE_NAME
+    )
+
+
+def _selected_connector_shape(inputs):
+    shape_input = inputs.itemById('connector_shape')
+    return (
+        shape_input.selectedItem.name
+        if shape_input is not None and shape_input.selectedItem is not None
+        else None
     )
 
 
@@ -540,6 +584,7 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
     sketch_input = inputs.itemById('position_sketch')
     shape_input = inputs.itemById('connector_shape')
     diameter_input = inputs.itemById('connector_diameter')
+    height_input = inputs.itemById('connector_height')
     length_input = inputs.itemById('connector_length')
     lead_in_input = inputs.itemById('lead_in_length')
     clearance_input = inputs.itemById('radial_clearance')
@@ -548,23 +593,27 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
     selected_entries = _selected_position_entries(inputs)
     selected_numbers = [index for index, _point in selected_entries]
     points = [point for _index, point in selected_entries]
-    shape = (
-        shape_input.selectedItem.name
-        if shape_input is not None and shape_input.selectedItem is not None
-        else None
+    shape = _selected_connector_shape(inputs)
+    half_width = diameter_input.value / 2 if diameter_input is not None else 0
+    half_height = (
+        height_input.value / 2
+        if shape == 'Oval' and height_input is not None
+        else half_width
     )
+    profile_half_size = min(half_width, half_height)
     futil.log(f'Connector profile candidates selected: {selected_numbers}')
     if (
         sketch is None
         or not points
-        or shape not in ('Round', 'D-shaped')
+        or shape not in ('Round', 'D-shaped', 'Oval')
         or diameter_input is None
         or diameter_input.value <= 0
+        or (shape == 'Oval' and (height_input is None or height_input.value <= 0))
         or length_input is None
         or length_input.value <= 0
         or lead_in_input is None
         or lead_in_input.value < 0
-        or lead_in_input.value >= diameter_input.value / 2
+        or lead_in_input.value >= profile_half_size
         or lead_in_input.value >= length_input.value / 2
         or clearance_input is None
         or clearance_input.value < 0
@@ -573,9 +622,9 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
     ):
         ui.messageBox(
             'Select a supported shape and at least one position, enter a positive '
-            'diameter and length, '
+            'width, height where required, and length, '
             'use non-negative clearances, and keep the lead-in chamfer smaller '
-            'than both the connector radius and half its total length.',
+            'than both the smallest profile radius and half its total length.',
             CMD_NAME,
         )
         return
@@ -694,7 +743,7 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
         if reference_plane is None:
             raise RuntimeError('The position sketch has no planar reference.')
 
-        radius = diameter_input.value / 2
+        radius = half_width
         extrude_features = component.features.extrudeFeatures
         chamfer_features = component.features.chamferFeatures
         for point, profile_name, connector_name, chamfer_name, socket_profile_name, tool_names in zip(
@@ -711,7 +760,9 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
             if profile_center is None:
                 raise RuntimeError('Fusion could not transform a profile center.')
 
-            _add_connector_profile(profile_sketch, profile_center, radius, shape)
+            _add_connector_profile(
+                profile_sketch, profile_center, radius, shape, half_height=half_height
+            )
             profile_sketch.isLightBulbOn = True
 
             if profile_sketch.profiles.count != 1:
@@ -771,6 +822,7 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
                 socket_radius,
                 shape,
                 clearance_input.value,
+                half_height + clearance_input.value,
             )
             socket_profile_sketch.isLightBulbOn = True
             if socket_profile_sketch.profiles.count != 1:
@@ -879,6 +931,8 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
                 role='connector',
                 connectorIndex=str(index),
                 shape=shape,
+                width=str(diameter_input.value),
+                height=str(height_input.value) if shape == 'Oval' else '',
                 clearance=str(clearance_input.value),
                 leadIn=str(lead_in_input.value),
             )
@@ -900,17 +954,23 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
                 connectorIndex=str(index // 2 + 1),
                 segment='A' if index % 2 == 0 else 'B',
                 shape=shape,
+                width=str(diameter_input.value),
+                height=str(height_input.value) if shape == 'Oval' else '',
                 clearance=str(clearance_input.value),
                 depthClearance=str(depth_clearance_input.value),
             )
 
+        height_summary = (
+            f'Height: {height_input.expression}\n' if shape == 'Oval' else ''
+        )
         ui.messageBox(
             f'{len(connector_extrudes)} connector body/bodies and '
             f'{len(socket_cut_features)} socket cut(s) created.\n\n'
             f'Selected candidates: {", ".join(str(number) for number in selected_numbers)}\n'
             f'Connector bodies: {connector_names[0]} through {connector_names[-1]}\n'
             f'Shape: {shape}\n'
-            f'Diameter: {diameter_input.expression}\n'
+            f'Width / diameter: {diameter_input.expression}\n'
+            f'{height_summary}'
             f'Total length: {length_input.expression}\n'
             f'Lead-in chamfer: {lead_in_input.expression}\n'
             f'Radial clearance per side: {clearance_input.expression}\n'
@@ -949,11 +1009,38 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
         )
 
 
-def _add_connector_profile(sketch, center, radius, shape, flat_offset=0.0):
+def _add_connector_profile(
+    sketch, center, radius, shape, flat_offset=0.0, half_height=None
+):
     if shape == 'Round':
         circle = sketch.sketchCurves.sketchCircles.addByCenterRadius(center, radius)
         if circle is None:
             raise RuntimeError('Fusion could not create a round connector profile.')
+        return
+
+    if shape == 'Oval':
+        if half_height is None or half_height <= 0:
+            raise RuntimeError('The oval profile height is invalid.')
+        center_point = adsk.core.Point3D.create(center.x, center.y, center.z)
+        if radius >= half_height:
+            major_axis_point = adsk.core.Point3D.create(
+                center.x + radius, center.y, center.z
+            )
+            through_point = adsk.core.Point3D.create(
+                center.x, center.y + half_height, center.z
+            )
+        else:
+            major_axis_point = adsk.core.Point3D.create(
+                center.x, center.y + half_height, center.z
+            )
+            through_point = adsk.core.Point3D.create(
+                center.x + radius, center.y, center.z
+            )
+        ellipse = sketch.sketchCurves.sketchEllipses.add(
+            center_point, major_axis_point, through_point
+        )
+        if ellipse is None:
+            raise RuntimeError('Fusion could not create an oval connector profile.')
         return
 
     if shape != 'D-shaped':

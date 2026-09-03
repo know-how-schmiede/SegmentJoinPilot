@@ -2,9 +2,21 @@
 
 Diese Datei enthält die kompakte chronologische Übersicht aller freigegebenen und begonnenen Projektversionen. Ausführliche Implementierungsdetails, Testanleitungen und Testergebnisse werden weiterhin im [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) geführt.
 
-## 2026-09-03 — Version 0.4.9
+## 2026-09-03 — Version 0.5.0
 
 Status: Implementiert; Fusion-Test und Freigabe stehen aus.
+
+- Manifest, `version.py`, Command-ID und Installer auf `0.5.0` aktualisiert.
+- Kompaktes Markenbanner als vollbreites Bild oben in den Befehlsdialog integriert.
+- Profilform `Oval` mit dynamisch sichtbarer Höhenangabe ergänzt.
+- Ovale Verbinder und passende, in beiden Achsen toleranzbehaftete Socket-Konturen umgesetzt.
+- Bestehende Fasen-, Schnitt-, Rollback-, Timeline- und Metadaten-Pipeline auf Oval erweitert.
+- Installer `SegmentJoinPilot-Setup-0.5.0.exe` wird mit dem bestätigten Fusion-360-Zielpfad erzeugt.
+
+
+## 2026-09-03 — Version 0.4.9
+
+Status: In Fusion getestet und vom Projektverantwortlichen freigegeben; korrigierter Installer ebenfalls bestätigt.
 
 - Manifest und `version.py` auf `0.4.9` aktualisiert.
 - D-förmiges Verbinderprofil als Kreisbogen mit definierter Flachseite ergänzt.
