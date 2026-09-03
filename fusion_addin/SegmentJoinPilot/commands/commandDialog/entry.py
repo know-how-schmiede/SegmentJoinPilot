@@ -11,7 +11,7 @@ ui = app.userInterface
 
 
 # TODO *** Specify the command identity information. ***
-CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV051'
+CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV052'
 CMD_NAME = f'SegmentJoinPilot {__version__}'
 CMD_Description = 'Split models into printable segments and add alignment connectors.'
 
@@ -148,7 +148,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     inputs.addTextBoxCommandInput(
         'step_scope',
         '',
-        f'Version {__version__} adds rounded-rectangle connectors and sockets.',
+        f'Version {__version__} adds hexagonal connectors and matching sockets.',
         2,
         True,
     )
@@ -189,6 +189,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     shape_input.listItems.add('D-shaped', False, '')
     shape_input.listItems.add('Oval', False, '')
     shape_input.listItems.add('Rounded rectangle', False, '')
+    shape_input.listItems.add('Hexagon', False, '')
     connector_inputs.addValueInput(
         'connector_diameter',
         'Width / diameter',
@@ -272,7 +273,7 @@ def command_validate_inputs(args: adsk.core.ValidateInputsEventArgs):
             and height_input is not None
             and height_input.value > 0
             else diameter_input.value / 2
-            if shape in ('Round', 'D-shaped')
+            if shape in ('Round', 'D-shaped', 'Hexagon')
             and diameter_input is not None
             and diameter_input.value > 0
             else 0
@@ -283,7 +284,9 @@ def command_validate_inputs(args: adsk.core.ValidateInputsEventArgs):
             and bool(_selected_position_points(inputs))
             and diameter_input is not None
             and diameter_input.value > 0
-            and shape in ('Round', 'D-shaped', 'Oval', 'Rounded rectangle')
+            and shape in (
+                'Round', 'D-shaped', 'Oval', 'Rounded rectangle', 'Hexagon'
+            )
             and (
                 shape not in ('Oval', 'Rounded rectangle')
                 or (height_input is not None and height_input.value > 0)
@@ -630,7 +633,9 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
     if (
         sketch is None
         or not points
-        or shape not in ('Round', 'D-shaped', 'Oval', 'Rounded rectangle')
+        or shape not in (
+            'Round', 'D-shaped', 'Oval', 'Rounded rectangle', 'Hexagon'
+        )
         or diameter_input is None
         or diameter_input.value <= 0
         or (
@@ -1106,6 +1111,10 @@ def _add_connector_profile(
         )
         return
 
+    if shape == 'Hexagon':
+        _add_hexagon_profile(sketch, center, radius)
+        return
+
     if shape == 'Oval':
         if half_height is None or half_height <= 0:
             raise RuntimeError('The oval profile height is invalid.')
@@ -1206,6 +1215,35 @@ def _add_rounded_rectangle_profile(
     for start_point, end_point in connections:
         if lines.addByTwoPoints(start_point, end_point) is None:
             raise RuntimeError('Fusion could not close the rounded-rectangle profile.')
+
+
+def _add_hexagon_profile(sketch, center, apothem):
+    if apothem <= 0:
+        raise RuntimeError('The hexagon dimensions are invalid.')
+
+    circumradius = apothem / math.cos(math.pi / 6)
+    vertices = [
+        adsk.core.Point3D.create(
+            center.x + circumradius * math.cos(index * math.pi / 3),
+            center.y + circumradius * math.sin(index * math.pi / 3),
+            center.z,
+        )
+        for index in range(6)
+    ]
+    lines = sketch.sketchCurves.sketchLines
+    first_line = lines.addByTwoPoints(vertices[0], vertices[1])
+    if first_line is None:
+        raise RuntimeError('Fusion could not create the hexagon profile.')
+
+    first_point = first_line.startSketchPoint
+    previous_point = first_line.endSketchPoint
+    for vertex in vertices[2:]:
+        line = lines.addByTwoPoints(previous_point, vertex)
+        if line is None:
+            raise RuntimeError('Fusion could not create the hexagon profile.')
+        previous_point = line.endSketchPoint
+    if lines.addByTwoPoints(previous_point, first_point) is None:
+        raise RuntimeError('Fusion could not close the hexagon profile.')
 
 
 def _extrude_end_edges(extrude_feature):

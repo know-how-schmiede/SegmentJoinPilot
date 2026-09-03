@@ -1,5 +1,5 @@
 #define MyAppName "SegmentJoinPilot"
-#define MyAppVersion "0.5.1"
+#define MyAppVersion "0.5.2"
 #define MyAppPublisher "know-how-schmiede"
 #define MyAppURL "https://github.com/know-how-schmiede/SegmentJoinPilot"
 #define MyAppSource "..\fusion_addin\SegmentJoinPilot"

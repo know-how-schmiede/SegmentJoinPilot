@@ -928,4 +928,36 @@ Fusion test:
 7. Enter a corner radius of `2 mm` for a `4 mm` height and verify that confirmation is rejected.
 8. Repeat with Round, D-shaped, and Oval to check for regressions.
 
+Test result: Passed in Fusion and confirmed by the project owner.
+
+## Version 0.5.2
+
+### Step 28 - Add hexagonal connectors
+
+Implemented:
+
+- Updated `version.py`, Fusion manifest, command ID, and the installer definition to version `0.5.2`.
+- Added `Hexagon` to the connector shape selector.
+- Interpreted `Width / diameter` as the hexagon width across opposite flat sides.
+- Constructed a regular hexagon from six connected sketch lines using the apothem derived from half the configured width.
+- Increased the socket apothem by the configured radial clearance, maintaining the same perpendicular clearance at all six flat sides.
+- Applied the existing symmetric extrusion, lead-in chamfer, socket cuts, rollback, stable naming, timeline grouping, and persistent metadata pipeline.
+- Kept height and corner-radius inputs hidden because they are not required for the regular hexagon.
+- Did not rebuild the installer EXE, following the project-owner rule that installer builds require a separate explicit request.
+
+Scope limitation:
+
+- The hexagon orientation follows the local X/Y axes of the position sketch and cannot yet be rotated independently.
+- The width is across flats, not across opposite vertices. The vertex-to-vertex size is calculated from the regular-hexagon geometry.
+
+Fusion test:
+
+1. Stop and restart SegmentJoinPilot 0.5.2 and select two connector positions.
+2. Choose `Hexagon` and retain `6 mm` width, `12 mm` length, `1 mm` lead-in, `0.20 mm` radial clearance, and `0.30 mm` depth clearance.
+3. Verify that height and corner-radius fields remain hidden.
+4. Complete the operation and verify two separate regular-hexagon connectors and four matching socket cuts.
+5. Verify the connector width is `6 mm` across flats and the socket width is `6.4 mm` across flats.
+6. Verify both end chamfers, stable names, `shape=Hexagon` metadata, and inclusion in the operation timeline group.
+7. Repeat with Round, D-shaped, Oval, and Rounded rectangle to check for regressions.
+
 Test result: Pending Fusion test and project-owner confirmation.
