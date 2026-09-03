@@ -2,9 +2,23 @@
 
 Diese Datei enthält die kompakte chronologische Übersicht aller freigegebenen und begonnenen Projektversionen. Ausführliche Implementierungsdetails, Testanleitungen und Testergebnisse werden weiterhin im [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) geführt.
 
+## 2026-09-03 — Version 0.5.3
+
+Status: Bugfix implementiert; Fusion-Test und Freigabe stehen aus.
+
+- Manifest, `version.py`, Command-ID und Installer-Definition auf `0.5.3` aktualisiert.
+- Fehlende Checkboxen bei erneut ausgewählten bestehenden Positionsskizzen behoben.
+- Dynamische Kandidaten-Eingaben erhalten pro Neuaufbau eine eindeutige Generations-ID.
+- Gültigkeitsprüfung und Diagnoseprotokoll für neu erzeugte Checkboxen ergänzt.
+- Ersten 0.5.3-Test korrigiert: Manuelle Skizzenauswahl übergibt nun die vollständige Root-CommandInputs-Sammlung statt der untergeordneten Positions-Inputs an den Checkbox-Aufbau.
+- Zweiten 0.5.3-Test korrigiert: Neue Geometrie einer bestehenden Operation setzt die Connector-Nummerierung nach dem höchsten vorhandenen Index fort, statt erneut bei `_01` zu kollidieren.
+- Fortlaufende Connector-Indizes in Metadaten übernommen und bestehende Operationsattribute rollback-sicher aktualisiert.
+- Automatischer Post-Split-Ablauf und bestehende Auswahl-/Markerlogik bleiben erhalten.
+- Installer-EXE gemäß Projektvorgabe nicht neu gebaut.
+
 ## 2026-09-03 — Version 0.5.2
 
-Status: Implementiert; Fusion-Test und Freigabe stehen aus.
+Status: In Fusion getestet und vom Projektverantwortlichen freigegeben.
 
 - Manifest, `version.py`, Command-ID und Installer-Definition auf `0.5.2` aktualisiert.
 - Profilform `Hexagon` mit der Eingabe als Schlüsselweite ergänzt.

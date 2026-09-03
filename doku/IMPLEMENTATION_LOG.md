@@ -960,4 +960,61 @@ Fusion test:
 6. Verify both end chamfers, stable names, `shape=Hexagon` metadata, and inclusion in the operation timeline group.
 7. Repeat with Round, D-shaped, Oval, and Rounded rectangle to check for regressions.
 
-Test result: Pending Fusion test and project-owner confirmation.
+Test result: Passed in Fusion and confirmed by the project owner.
+
+## Version 0.5.3
+
+### Step 29 - Restore point checkboxes when reopening a position sketch
+
+Observed bug:
+
+- After reopening SegmentJoinPilot and manually selecting an existing `SJP_PositionSketch_NNN`, the points were detected but no candidate checkboxes were displayed.
+- The status therefore showed the correct detected-point count but `0 selected`, leaving the command unable to continue.
+- The automatic post-split workflow did not show this issue.
+
+Implemented:
+
+- Updated `version.py`, Fusion manifest, command ID, and installer definition to version `0.5.3`.
+- Added a monotonically increasing generation number for dynamic position-candidate controls.
+- Changed checkbox IDs from reusable `position_candidate_<index>` values to unique `position_candidate_<generation>_<index>` values.
+- Preserved the common input prefix so existing candidate-change handling and cleanup continue to work.
+- Added an explicit validity check for each newly created checkbox and diagnostic logging of generation and control count.
+- Did not rebuild the installer EXE, as required by the project-owner build rule.
+
+Rationale:
+
+- The first 0.5.3 attempt addressed possible dynamic-input ID reuse, but the follow-up Fusion test still detected points without displaying checkboxes.
+- The confirmed code-path difference was the input collection passed to the rebuild function: startup passed the root command collection, while manual selection passed the child collection containing the position inputs.
+- `_rebuild_position_candidate_inputs` searches the root collection for `positions_group`; receiving its child collection caused it to return before creating any checkbox.
+- The manual sketch-selection and checkbox-change handlers now explicitly obtain `args.input.parentCommand.commandInputs`, matching the successful startup path.
+- Unique generated IDs remain as an additional safeguard for repeated rebuilds during one command lifetime.
+
+Fusion regression test:
+
+1. Stop and restart SegmentJoinPilot 0.5.3.
+2. Open the command, switch to `Set Point`, and manually select an existing `SJP_PositionSketch_NNN` containing three points.
+3. Verify that all three point checkboxes appear and are initially selected.
+4. Toggle every checkbox and verify detected count, selected count, selected list, red markers, and OK-button validity update correctly.
+5. Clear and reselect the same sketch several times and verify that the checkbox list is recreated every time.
+6. Select a different existing position sketch and verify that only its candidates are displayed.
+7. Complete one connector operation using a subset of the reopened sketch points.
+8. Verify that the automatic post-split Set Point workflow still displays selectable candidates.
+
+Follow-up after checkbox selection was restored:
+
+- The next Fusion test showed that candidates could be selected, but executing the command did not add profiles to the reused operation.
+- Existing operations already contained connector/profile names ending in `_01`, while every new execution restarted its output numbering at `_01`; the duplicate-name protection therefore stopped geometry creation before processing any selected point or shape.
+- Added `_next_connector_index` to scan existing connector profiles, bodies, extrusion features, chamfers, socket profiles, socket tools, and socket cuts for the selected operation.
+- New output names now continue after the highest connector index already used by that operation.
+- Persistent `connectorIndex` metadata now uses the actual continued index instead of restarting at `1`.
+- Existing split, position-sketch, and segment attributes are updated without adding them to the rollback deletion list, preventing a failed append operation from deleting metadata created by an earlier successful run.
+
+Additional Fusion regression test:
+
+1. Use an existing position sketch whose operation already contains connectors `_01` and `_02`.
+2. Reopen SegmentJoinPilot, select one or more points, and choose a different shape.
+3. Complete the command and verify new connector profiles and bodies begin with `_03` without changing `_01` or `_02`.
+4. Verify matching socket cuts, the selected shape, continued `connectorIndex` metadata, and the extended operation timeline group.
+5. Repeat with another shape and verify numbering continues again without name collisions.
+
+Test result: Checkbox portion passed; append-geometry follow-up pending Fusion test and project-owner confirmation.

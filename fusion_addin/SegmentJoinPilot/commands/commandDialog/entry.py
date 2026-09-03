@@ -11,7 +11,7 @@ ui = app.userInterface
 
 
 # TODO *** Specify the command identity information. ***
-CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV052'
+CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV053'
 CMD_NAME = f'SegmentJoinPilot {__version__}'
 CMD_Description = 'Split models into printable segments and add alignment connectors.'
 
@@ -42,6 +42,7 @@ _workflow_sketch = None
 _waiting_for_sketch_finish = False
 _startup_set_point_sketch = None
 _position_candidate_entries = []
+_position_candidate_generation = 0
 
 # Fusion model geometry uses centimeters internally.
 PLANE_DISTANCE_TOLERANCE_CM = 1e-6
@@ -148,7 +149,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     inputs.addTextBoxCommandInput(
         'step_scope',
         '',
-        f'Version {__version__} adds hexagonal connectors and matching sockets.',
+        f'Version {__version__} fixes point selection when reopening a sketch.',
         2,
         True,
     )
@@ -344,16 +345,17 @@ def command_input_changed(args: adsk.core.InputChangedEventArgs):
         return
 
     if args.input.id == 'position_sketch':
+        root_inputs = args.input.parentCommand.commandInputs
         sketch = (
             _selected_position_sketch(args.input)
             if args.input.selectionCount == 1
             else None
         )
-        _rebuild_position_candidate_inputs(args.inputs, sketch)
+        _rebuild_position_candidate_inputs(root_inputs, sketch)
         return
 
     if args.input.id.startswith(POSITION_CANDIDATE_INPUT_PREFIX):
-        _update_position_candidate_status(args.inputs)
+        _update_position_candidate_status(args.input.parentCommand.commandInputs)
         return
 
     if args.input.id not in ('solid_body', 'construction_plane'):
@@ -423,9 +425,11 @@ def _selected_position_sketch(sketch_input):
 
 
 def _rebuild_position_candidate_inputs(inputs, sketch):
-    global _position_candidate_entries
+    global _position_candidate_entries, _position_candidate_generation
 
     _position_candidate_entries = []
+    _position_candidate_generation += 1
+    generation = _position_candidate_generation
     positions_group = inputs.itemById('positions_group')
     if positions_group is None:
         return
@@ -440,13 +444,21 @@ def _rebuild_position_candidate_inputs(inputs, sketch):
     for index, point in enumerate(points):
         position = point.geometry
         checkbox = candidate_inputs.addBoolValueInput(
-            f'{POSITION_CANDIDATE_INPUT_PREFIX}{index}',
+            f'{POSITION_CANDIDATE_INPUT_PREFIX}{generation}_{index}',
             f'Point {index + 1} ({position.x:.3f}, {position.y:.3f} cm)',
             True,
             '',
             True,
         )
+        if checkbox is None or not checkbox.isValid:
+            raise RuntimeError(
+                f'Fusion could not create the selector for position {index + 1}.'
+            )
         _position_candidate_entries.append((point, checkbox))
+    futil.log(
+        f'Position candidate controls rebuilt: generation {generation}, '
+        f'{len(_position_candidate_entries)} control(s).'
+    )
     _update_position_candidate_status(inputs)
 
 
@@ -679,35 +691,39 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
 
     operation_suffix = name_match.group(1)
     component = sketch.parentComponent
+    first_connector_index = _next_connector_index(component, operation_suffix)
+    connector_indices = list(
+        range(first_connector_index, first_connector_index + len(points))
+    )
     profile_names = [
         f'SJP_ConnectorProfile_{operation_suffix}_{index:02d}'
-        for index in range(1, len(points) + 1)
+        for index in connector_indices
     ]
     connector_names = [
         f'SJP_Connector_{operation_suffix}_{index:02d}'
-        for index in range(1, len(points) + 1)
+        for index in connector_indices
     ]
     chamfer_names = [
         f'SJP_ConnectorLeadIn_{operation_suffix}_{index:02d}'
-        for index in range(1, len(points) + 1)
+        for index in connector_indices
     ]
     socket_profile_names = [
         f'SJP_SocketProfile_{operation_suffix}_{index:02d}'
-        for index in range(1, len(points) + 1)
+        for index in connector_indices
     ]
     socket_tool_names = [
         (
             f'SJP_SocketTool_A_{operation_suffix}_{index:02d}',
             f'SJP_SocketTool_B_{operation_suffix}_{index:02d}',
         )
-        for index in range(1, len(points) + 1)
+        for index in connector_indices
     ]
     socket_feature_names = [
         (
             f'SJP_Socket_A_{operation_suffix}_{index:02d}',
             f'SJP_Socket_B_{operation_suffix}_{index:02d}',
         )
-        for index in range(1, len(points) + 1)
+        for index in connector_indices
     ]
     existing_names = {
         component.sketches.item(index).name
@@ -978,13 +994,15 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
             role='segment',
             segment='B',
         )
-        for index, connector_body in enumerate(connector_bodies, start=1):
+        for connector_index, connector_body in zip(
+            connector_indices, connector_bodies
+        ):
             _add_sjp_attributes(
                 connector_body,
                 created_attributes,
                 **common_attributes,
                 role='connector',
-                connectorIndex=str(index),
+                connectorIndex=str(connector_index),
                 shape=shape,
                 width=str(diameter_input.value),
                 height=(
@@ -1000,13 +1018,15 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
                 clearance=str(clearance_input.value),
                 leadIn=str(lead_in_input.value),
             )
-        for index, connector_chamfer in enumerate(connector_chamfers, start=1):
+        for connector_index, connector_chamfer in zip(
+            connector_indices, connector_chamfers
+        ):
             _add_sjp_attributes(
                 connector_chamfer,
                 created_attributes,
                 **common_attributes,
                 role='connectorLeadIn',
-                connectorIndex=str(index),
+                connectorIndex=str(connector_index),
                 distance=str(lead_in_input.value),
             )
         for index, socket_cut in enumerate(socket_cut_features):
@@ -1015,7 +1035,7 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
                 created_attributes,
                 **common_attributes,
                 role='socket',
-                connectorIndex=str(index // 2 + 1),
+                connectorIndex=str(connector_indices[index // 2]),
                 segment='A' if index % 2 == 0 else 'B',
                 shape=shape,
                 width=str(diameter_input.value),
@@ -1277,6 +1297,31 @@ def _body_by_name(component: adsk.fusion.Component, name: str):
     return None
 
 
+def _next_connector_index(component, operation_suffix):
+    name_pattern = re.compile(
+        rf'^SJP_(?:ConnectorProfile|Connector|ConnectorLeadIn|SocketProfile|'
+        rf'SocketTool_[AB]|Socket_[AB])_{re.escape(operation_suffix)}_(\d+)$'
+    )
+    names = []
+    collections = (
+        component.sketches,
+        component.bRepBodies,
+        component.features.extrudeFeatures,
+        component.features.chamferFeatures,
+        component.features.combineFeatures,
+    )
+    for collection in collections:
+        for index in range(collection.count):
+            names.append(collection.item(index).name)
+
+    used_indices = []
+    for name in names:
+        match = name_pattern.match(name)
+        if match is not None:
+            used_indices.append(int(match.group(1)))
+    return max(used_indices, default=0) + 1
+
+
 def _split_feature_by_name(component: adsk.fusion.Component, name: str):
     split_features = component.features.splitBodyFeatures
     for index in range(split_features.count):
@@ -1325,6 +1370,12 @@ def _replace_operation_timeline_group(design, group_name, start_object, end_obje
 
 def _add_sjp_attributes(entity, created_attributes, **values):
     for name, value in values.items():
+        existing_attribute = entity.attributes.itemByName(
+            'SegmentJoinPilot', name
+        )
+        if existing_attribute is not None:
+            existing_attribute.value = str(value)
+            continue
         attribute = entity.attributes.add('SegmentJoinPilot', name, str(value))
         if attribute is None:
             raise RuntimeError(
