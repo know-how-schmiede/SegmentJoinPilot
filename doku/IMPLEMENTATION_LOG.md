@@ -705,6 +705,37 @@ Fusion test:
 5. Expand the group and verify that its first item is `SJP_Split_NNN` and its last item is the final `SJP_Socket_B_NNN_II` feature.
 6. Verify that both segment bodies, separate connector bodies, and socket cuts remain geometrically unchanged.
 
-Test result: Initial Fusion test failed while attempting to read indices from the existing
-group. Index resolution now occurs only after the group is removed; repeated Fusion test
-and project-owner confirmation are pending.
+Test result: Passed in Fusion and confirmed by the project owner after resolving timeline
+indices only after removal of the original group. The complete operation is contained in
+one `SJP_Operation_NNN` timeline group.
+
+## Version 0.4.7
+
+### Step 21 - Store persistent operation metadata
+
+Implemented:
+
+- Updated `version.py` and `SegmentJoinPilot.manifest` to version `0.4.7` as instructed by the project owner.
+- Added Fusion attributes under the `SegmentJoinPilot` group to generated operation entities.
+- Stored `schemaVersion=1` and the stable `operationId` on the split feature, position sketch, segment bodies, connector bodies, and socket cut features.
+- Stored entity roles (`split`, `positionSketch`, `segment`, `connector`, and `socket`).
+- Stored segment side, connector index, round shape, radial clearance, and depth clearance where applicable.
+- Added rollback of every attribute created during a failed command run.
+
+Scope limitation:
+
+- Metadata is stored for later discovery but no edit-existing-operation interface uses it yet.
+- Clearance values use Fusion's internal centimeter unit and are stored as strings.
+- Profile sketches and consumed temporary tool features are identified through their stable names and timeline group, not additional attributes in this step.
+
+Fusion test:
+
+1. Stop and restart `SegmentJoinPilot` and complete a two-position operation.
+2. Run a Fusion API inspection script or use the Text Commands Python environment to inspect the `SegmentJoinPilot` attributes.
+3. Verify `schemaVersion=1` and the same `operationId` on the split feature, position sketch, both segments, both connector bodies, and four socket cut features.
+4. Verify Segment A/B bodies have `role=segment` and the matching `segment` value.
+5. Verify connector bodies have `role=connector`, indices `1` and `2`, and `shape=Round`.
+6. Verify socket features have `role=socket`, matching connector indices and segment sides, plus the configured clearance values.
+7. Save, close, and reopen the design and verify that the attributes remain available.
+
+Test result: Pending Fusion test and project-owner confirmation.

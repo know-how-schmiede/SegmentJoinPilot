@@ -2,9 +2,20 @@
 
 Diese Datei enthält die kompakte chronologische Übersicht aller freigegebenen und begonnenen Projektversionen. Ausführliche Implementierungsdetails, Testanleitungen und Testergebnisse werden weiterhin im [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) geführt.
 
-## 2026-09-03 — Version 0.4.6
+## 2026-09-03 — Version 0.4.7
 
 Status: Implementiert; Fusion-Test und Freigabe stehen aus.
+
+- Manifest und `version.py` auf `0.4.7` aktualisiert.
+- Persistente Attribute der Gruppe `SegmentJoinPilot` an Split, Positionsskizze, Segmenten, Verbindern und Socket-Features gespeichert.
+- Schema-Version, Vorgangs-ID, Rolle, Segmentseite, Connector-Index, Form und Toleranzwerte hinterlegt.
+- Attributbereinigung in den vollständigen Rollback aufgenommen.
+- Bearbeitung bestehender Vorgänge über diese Metadaten bleibt ein Folgeschritt.
+
+
+## 2026-09-03 — Version 0.4.6
+
+Status: In Fusion getestet und vom Projektverantwortlichen freigegeben.
 
 - Manifest und `version.py` auf `0.4.6` aktualisiert.
 - Bestehende Timeline-Gruppe vom Split bis zum letzten Socket-Cut erweitert.

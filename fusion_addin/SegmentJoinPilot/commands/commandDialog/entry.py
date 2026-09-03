@@ -10,7 +10,7 @@ ui = app.userInterface
 
 
 # TODO *** Specify the command identity information. ***
-CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV046'
+CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV047'
 CMD_NAME = f'SegmentJoinPilot {__version__}'
 CMD_Description = 'Split models into printable segments and add alignment connectors.'
 
@@ -143,7 +143,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     inputs.addTextBoxCommandInput(
         'step_scope',
         '',
-        f'Version {__version__} groups the complete connector operation in the timeline.',
+        f'Version {__version__} stores persistent metadata on generated geometry.',
         2,
         True,
     )
@@ -642,10 +642,12 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
     profile_sketches = []
     socket_profile_sketches = []
     connector_extrudes = []
+    connector_bodies = []
     socket_tool_extrudes = []
     socket_tool_body_pairs = []
     socket_cut_features = []
     extended_timeline_group = None
+    created_attributes = []
     try:
         reference_plane = sketch.referencePlane
         if reference_plane is None:
@@ -695,7 +697,9 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
             if connector_extrude is None or connector_extrude.bodies.count != 1:
                 raise RuntimeError('Fusion could not create one connector body.')
             connector_extrude.name = connector_name
-            connector_extrude.bodies.item(0).name = connector_name
+            connector_body = connector_extrude.bodies.item(0)
+            connector_body.name = connector_name
+            connector_bodies.append(connector_body)
 
             socket_profile_sketch = component.sketches.addWithoutEdges(reference_plane)
             if socket_profile_sketch is None:
@@ -785,6 +789,53 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
             socket_cut_features[-1].timelineObject,
         )
 
+        common_attributes = {
+            'schemaVersion': '1',
+            'operationId': operation_suffix,
+        }
+        _add_sjp_attributes(
+            split_feature, created_attributes, **common_attributes, role='split'
+        )
+        _add_sjp_attributes(
+            sketch, created_attributes, **common_attributes, role='positionSketch'
+        )
+        _add_sjp_attributes(
+            segment_a,
+            created_attributes,
+            **common_attributes,
+            role='segment',
+            segment='A',
+        )
+        _add_sjp_attributes(
+            segment_b,
+            created_attributes,
+            **common_attributes,
+            role='segment',
+            segment='B',
+        )
+        for index, connector_body in enumerate(connector_bodies, start=1):
+            _add_sjp_attributes(
+                connector_body,
+                created_attributes,
+                **common_attributes,
+                role='connector',
+                connectorIndex=str(index),
+                shape='Round',
+                clearance=str(clearance_input.value),
+            )
+        for index, socket_cut in enumerate(socket_cut_features):
+            _add_sjp_attributes(
+                socket_cut,
+                created_attributes,
+                **common_attributes,
+                role='socket',
+                connectorIndex=str(index // 2 + 1),
+                segment='A' if index % 2 == 0 else 'B',
+                shape='Round',
+                clearance=str(clearance_input.value),
+                depthClearance=str(depth_clearance_input.value),
+            )
+
         ui.messageBox(
             f'{len(connector_extrudes)} connector body/bodies and '
             f'{len(socket_cut_features)} socket cut(s) created.\n\n'
@@ -797,6 +848,9 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
             CMD_NAME,
         )
     except Exception as error:
+        for attribute in reversed(created_attributes):
+            if attribute.isValid:
+                attribute.deleteMe()
         if extended_timeline_group is not None and extended_timeline_group.isValid:
             extended_timeline_group.deleteMe(False)
         for socket_cut_feature in reversed(socket_cut_features):
@@ -884,6 +938,16 @@ def _replace_operation_timeline_group(design, group_name, start_object, end_obje
         raise RuntimeError(f'Fusion could not recreate timeline group {group_name}.')
     replacement.name = group_name
     return replacement
+
+
+def _add_sjp_attributes(entity, created_attributes, **values):
+    for name, value in values.items():
+        attribute = entity.attributes.add('SegmentJoinPilot', name, str(value))
+        if attribute is None:
+            raise RuntimeError(
+                f'Fusion could not store SegmentJoinPilot attribute {name}.'
+            )
+        created_attributes.append(attribute)
 
 
 def _selections_intersect(inputs: adsk.core.CommandInputs) -> bool:
