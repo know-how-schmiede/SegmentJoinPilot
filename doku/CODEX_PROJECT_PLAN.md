@@ -201,6 +201,93 @@ Empfohlene Attribute:
 - `shape`
 - `clearance`
 
+## Wiederverwendbarer Installer- und Distributionsstandard
+
+Dieser Abschnitt ist bewusst projektübergreifend formuliert und soll bei weiteren
+Autodesk-Fusion-Plug-ins als Ausgangsbasis verwendet werden.
+
+### Windows-Installer
+
+- Für Windows wird vorzugsweise ein reproduzierbares Inno-Setup-Skript unter
+  `installer/<PluginName>.iss` angelegt.
+- Ein Buildskript unter `installer/build-installer.ps1` prüft vor dem Kompilieren,
+  dass Installer, `version.py` und `*.manifest` dieselbe freigegebene Version verwenden.
+- Die fertige, versionsgebundene EXE wird unter
+  `installer/dist/<PluginName>-Setup-<Version>.exe` erzeugt.
+- Die Inno-Setup-`AppId` bleibt über alle Versionen desselben Plug-ins stabil, damit
+  Updates und Deinstallation derselben Anwendung zugeordnet werden.
+- Eine normale Einzelplatzinstallation erfolgt benutzerbezogen mit
+  `PrivilegesRequired=lowest`; ein Benutzername oder ein absolutes `C:\Users\...`
+  darf niemals fest im Installer stehen.
+- Für den benutzerbezogenen Basisordner wird die Inno-Setup-Konstante
+  `{userappdata}` verwendet. Sie wird auf jedem Rechner für das Konto aufgelöst,
+  unter dem das Setup ausgeführt wird.
+- Das Setup muss unter demselben Windows-Konto ausgeführt werden, unter dem Fusion
+  verwendet wird. Umgeleitete AppData-Verzeichnisse in Firmenumgebungen werden durch
+  `{userappdata}` grundsätzlich unterstützt, sofern dort Schreibrechte bestehen.
+
+### Fusion-Add-in-Pfad
+
+- Der konkrete automatisch durchsuchte Add-in-Pfad ist vor dem Release auf einer
+  realen Zielinstallation zu prüfen. Je nach Fusion-Installation beziehungsweise
+  Produktgeneration können insbesondere diese Ordner vorkommen:
+
+  ```text
+  %APPDATA%\Autodesk\Autodesk Fusion 360\API\AddIns
+  %APPDATA%\Autodesk\Autodesk Fusion\API\AddIns
+  ```
+
+- Ein auf dem Entwicklungsrechner funktionierender Pfad darf nicht ungeprüft als
+  universell gültig angenommen werden. Zusätzlich kann Fusion in den API-Einstellungen
+  einen benutzerdefinierten Standardpfad verwenden.
+- Der robuste Zielzustand für weitere Installer ist: vorhandene bekannte Fusion-Pfade
+  erkennen, den tatsächlich verwendeten Pfad bevorzugen und bei keiner oder mehreren
+  eindeutigen Erkennungen eine sichtbare Zielauswahl anbieten.
+- Bis eine automatische Erkennung implementiert ist, verwendet jedes Projekt den auf
+  seiner Zielinstallation bestätigten Pfad und dokumentiert die bekannte Einschränkung.
+- Wird ein fehlerhafter Zielpfad in einem späteren Installer korrigiert, muss geprüft
+  werden, ob Inno Setup den alten Pfad aus einer vorherigen Installation übernimmt.
+  Bei einer bewusst erzwungenen Pfadkorrektur ist beispielsweise
+  `UsePreviousAppDir=no` zu setzen oder eine kontrollierte Migration umzusetzen.
+- Veraltete Installationsordner dürfen nur mit einem exakt auf Plug-in-Name und
+  bekanntes Altverzeichnis begrenzten Cleanup entfernt werden. Übergeordnete
+  `AddIns`- oder Autodesk-Verzeichnisse dürfen niemals rekursiv gelöscht werden.
+- Der Plug-in-Ordner muss direkt die gleichnamige Python-Einstiegsdatei und das
+  gleichnamige Manifest enthalten; eine versehentliche zusätzliche Verzeichnisebene
+  verhindert die automatische Erkennung durch Fusion.
+
+### Paketinhalt und Git
+
+- Der Installer enthält nur die für Fusion erforderlichen Laufzeitdateien. Mindestens
+  `.vscode`, `__pycache__`, `*.pyc`, `*.pyo`, lokale Logs und temporäre Builddateien
+  werden ausgeschlossen.
+- Installer-Quellen, Buildskripte und Buildanleitungen werden versioniert.
+- Generierte Binärdateien und Logs werden in `.gitignore` explizit ausgeschlossen,
+  beispielsweise mit `installer/dist/` und `installer/*.log`.
+- Falls eine allgemeine Python-`.gitignore` `*.manifest` ausschließt, wird das benötigte
+  Fusion-Manifest gezielt wieder aufgenommen, zum Beispiel mit
+  `!fusion_addin/<PluginName>/<PluginName>.manifest`.
+- Nach jeder `.gitignore`-Änderung wird mit `git check-ignore` geprüft, dass die EXE
+  ignoriert wird, Installer- und Buildskript aber weiterhin versionierbar sind.
+- Für jede fertige EXE werden Dateigröße und SHA-256-Prüfsumme dokumentiert.
+- Vor öffentlicher Verteilung ist eine Authenticode-Signatur zu empfehlen. Ohne
+  Signatur kann Windows SmartScreen trotz technisch korrektem Installer warnen.
+
+### Installer-Abnahmetest
+
+1. Fusion schließen und Installation ohne Administratorrechte ausführen.
+2. Den tatsächlichen Zielpfad und die Verzeichnisstruktur kontrollieren.
+3. Fusion neu starten und prüfen, dass das Plug-in automatisch gefunden wird.
+4. Mindestens einen vollständigen Plug-in-Arbeitsablauf ausführen.
+5. Ein Update über eine vorhandene ältere Version testen; dabei Zielpfad und
+   verbleibende Altdateien prüfen.
+6. Über Windows-Einstellungen deinstallieren und ausschließlich die installierten
+   Plug-in-Dateien als entfernt bestätigen.
+7. Den Test nach Möglichkeit mit einem zweiten Windows-Benutzerkonto oder auf einem
+   zweiten Rechner wiederholen.
+8. Sonderfälle dokumentieren: benutzerdefinierter Fusion-API-Pfad, umgeleitetes
+   AppData, fehlende Schreibrechte und parallele Fusion-Installationen.
+
 ## Entwicklungsphasen
 
 Die folgenden Phasen sind eine Reihenfolge, keine zusammenhängenden Implementierungsblöcke. Jeder Aufzählungspunkt ist als eigener Arbeitsschritt zu behandeln: implementieren, außerhalb von Fusion prüfen, in `doku/` dokumentieren, in Fusion testen und erst nach Bestätigung fortfahren.
@@ -254,6 +341,11 @@ Die folgenden Phasen sind eine Reihenfolge, keine zusammenhängenden Implementie
 
 - Testmodelle und reproduzierbare manuelle Tests ergänzen
 - Installation dokumentieren
+- Reproduzierbaren Windows-Installer und Buildskript nach dem Installerstandard dieses Plans erstellen
+- Automatisch durchsuchten Fusion-Add-in-Pfad auf der Zielinstallation verifizieren
+- Installation, Update und Deinstallation auf mindestens einer realen Fusion-Installation testen
+- Installer-Buildausgaben ignorieren und Versionierbarkeit der Installer-Quellen mit `git check-ignore` prüfen
+- SHA-256-Prüfsumme erzeugen und Signaturstatus dokumentieren
 - Englische Oberflächentexte auf Vollständigkeit und zentrale Ablage prüfen
 - Lokalisierungsstruktur für die späteren Sprachen Deutsch, Französisch, Spanisch und Polnisch vorbereiten, ohne diese Übersetzungen vorzeitig umzusetzen
 - Changelog und Release-Paket vorbereiten
