@@ -2,6 +2,26 @@
 
 Diese Datei enthält die kompakte chronologische Übersicht aller freigegebenen und begonnenen Projektversionen. Ausführliche Implementierungsdetails, Testanleitungen und Testergebnisse werden weiterhin im [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) geführt.
 
+## 2026-09-03 — Version 0.4.1
+
+Status: Implementiert; Fusion-Test und Freigabe stehen aus.
+
+- Manifest und `version.py` auf `0.4.1` aktualisiert.
+- Erkannte Positionspunkte als einzeln aktivierbare Kandidaten im Dialog ergänzt.
+- Benutzergezeichnete Einzelpunkte und Geometrie-Eckpunkte gemeinsam als Kandidaten angeboten.
+- Mindestens einen aktivierten Kandidaten für die Profilerzeugung vorausgesetzt.
+- Für jeden aktivierten Kandidaten ein separat nummeriertes rundes Profil-Sketch erzeugt.
+- Vorabprüfung auf Namenskollisionen und vollständigen Rollback bei Fehlern ergänzt.
+- Checkbox-Auswertung nach dem ersten Fusion-Test korrigiert und aktivierte Punkte im Modellfenster markiert.
+- Nach dem zweiten Fusion-Test nicht interaktive, verschachtelte Eingaben entfernt und die Bildmarkierungen durch rote Kreuzmarkierungen ersetzt.
+- Nach dem dritten Fusion-Test die Grafikmarkierung durch Fusions native Auswahlhervorhebung ersetzt und die Checkbox-Auswertung zusätzlich an die Eingabevalidierung gekoppelt.
+- Interne Command-ID erneuert, damit Fusion den zwischengespeicherten Zwischenstand des Dialogs sicher verwirft.
+- Lesbare Liste der aktivierten Kandidatennummern und ihrer lokalen Koordinaten ergänzt.
+- Native Hilfsauswahl wieder entfernt, nachdem sie beim Validieren alle Kandidaten reaktivieren konnte; Profilerzeugung ausschließlich an Checkbox-Zustand gekoppelt.
+- Verbliebenen Fehler in der Profilerzeugung korrigiert: Statt aller erkannten Punkte wird jetzt tatsächlich die ausgewählte Kandidatenmenge verarbeitet und protokolliert.
+- Rote Kreuzmarkierungen für die ausgewählten Punkte wiederhergestellt und über eine eindeutig benannte, bei jeder Aktualisierung bereinigte Grafikgruppe gegen veraltete Markierungen abgesichert.
+- Noch keine Extrusion oder Taschengeometrie erzeugt.
+
 ## 2026-09-02 — Version 0.4.0
 
 Status: In Fusion getestet und nach Korrektur der Punktfilterung freigegeben.

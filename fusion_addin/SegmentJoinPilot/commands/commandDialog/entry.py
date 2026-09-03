@@ -10,7 +10,7 @@ ui = app.userInterface
 
 
 # TODO *** Specify the command identity information. ***
-CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV020'
+CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV041CheckboxOnly'
 CMD_NAME = f'SegmentJoinPilot {__version__}'
 CMD_Description = 'Split models into printable segments and add alignment connectors.'
 
@@ -39,11 +39,14 @@ _pending_workflow_action = None
 _workflow_sketch = None
 _waiting_for_sketch_finish = False
 _startup_set_point_sketch = None
+_position_candidate_entries = []
 
 # Fusion model geometry uses centimeters internally.
 PLANE_DISTANCE_TOLERANCE_CM = 1e-6
 SJP_NAME_PATTERN = re.compile(r'^SJP_(?:Split|Segment_[AB])_(\d+)$')
 POSITION_SKETCH_NAME_PATTERN = re.compile(r'^SJP_PositionSketch_(\d+)$')
+POSITION_CANDIDATE_INPUT_PREFIX = 'position_candidate_'
+POSITION_MARKER_GRAPHICS_NAME = 'SJP_SelectedPositionMarkers'
 
 
 # Executed when add-in is run.
@@ -140,7 +143,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     inputs.addTextBoxCommandInput(
         'step_scope',
         '',
-        f'Version {__version__} creates one round test profile at the first position.',
+        f'Version {__version__} creates round test profiles at selected positions.',
         2,
         True,
     )
@@ -164,7 +167,13 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     point_status = positions_inputs.addTextBoxCommandInput(
         'point_status', 'Detected points', 'Select a position sketch.', 2, True
     )
-
+    positions_inputs.addTextBoxCommandInput(
+        'selected_position_list',
+        'Selected list',
+        'No positions selected.',
+        4,
+        True,
+    )
     connector_group = inputs.addGroupCommandInput('connector_group', 'Connector')
     connector_group.isVisible = start_in_set_point_mode
     connector_inputs = connector_group.children
@@ -183,8 +192,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
         body_input.setSelectionLimits(0, 1)
         plane_input.setSelectionLimits(0, 1)
         sketch_input.addSelection(startup_sketch)
-        point_count = len(_position_sketch_points(startup_sketch))
-        point_status.text = f'{point_count} position point(s) detected.'
+        _rebuild_position_candidate_inputs(inputs, startup_sketch)
 
     futil.add_handler(args.command.execute, command_execute, local_handlers=local_handlers)
     futil.add_handler(args.command.inputChanged, command_input_changed, local_handlers=local_handlers)
@@ -196,12 +204,13 @@ def command_validate_inputs(args: adsk.core.ValidateInputsEventArgs):
     command = adsk.core.Command.cast(args.firingEvent.sender)
     inputs = command.commandInputs if command is not None else args.inputs
     if _is_inspect_mode(inputs):
+        _update_position_candidate_status(inputs)
         sketch_input = inputs.itemById('position_sketch')
         diameter_input = inputs.itemById('connector_diameter')
         args.areInputsValid = (
             sketch_input is not None
             and sketch_input.selectionCount == 1
-            and bool(_position_sketch_points(_selected_position_sketch(sketch_input)))
+            and bool(_selected_position_points(inputs))
             and diameter_input is not None
             and diameter_input.value > 0
         )
@@ -228,11 +237,16 @@ def command_input_changed(args: adsk.core.InputChangedEventArgs):
         return
 
     if args.input.id == 'position_sketch':
-        point_status = args.inputs.itemById('point_status')
-        point_count = 0
-        if args.input.selectionCount == 1:
-            point_count = len(_position_sketch_points(_selected_position_sketch(args.input)))
-        point_status.text = f'{point_count} position point(s) detected.'
+        sketch = (
+            _selected_position_sketch(args.input)
+            if args.input.selectionCount == 1
+            else None
+        )
+        _rebuild_position_candidate_inputs(args.inputs, sketch)
+        return
+
+    if args.input.id.startswith(POSITION_CANDIDATE_INPUT_PREFIX):
+        _update_position_candidate_status(args.inputs)
         return
 
     if args.input.id not in ('solid_body', 'construction_plane'):
@@ -292,6 +306,163 @@ def _selected_position_sketch(sketch_input):
     return sketch_point.parentSketch if sketch_point is not None else None
 
 
+def _rebuild_position_candidate_inputs(inputs, sketch):
+    global _position_candidate_entries
+
+    _position_candidate_entries = []
+    positions_group = inputs.itemById('positions_group')
+    if positions_group is None:
+        return
+
+    candidate_inputs = positions_group.children
+    for index in range(candidate_inputs.count - 1, -1, -1):
+        candidate_input = candidate_inputs.item(index)
+        if candidate_input.id.startswith(POSITION_CANDIDATE_INPUT_PREFIX):
+            candidate_input.deleteMe()
+
+    points = _position_sketch_points(sketch)
+    for index, point in enumerate(points):
+        position = point.geometry
+        checkbox = candidate_inputs.addBoolValueInput(
+            f'{POSITION_CANDIDATE_INPUT_PREFIX}{index}',
+            f'Point {index + 1} ({position.x:.3f}, {position.y:.3f} cm)',
+            True,
+            '',
+            True,
+        )
+        _position_candidate_entries.append((point, checkbox))
+    _update_position_candidate_status(inputs)
+
+
+def _selected_position_points(inputs):
+    sketch = _selected_position_sketch(inputs.itemById('position_sketch'))
+    return [
+        point
+        for point, checkbox in _position_candidate_entries
+        if (
+            sketch is not None
+            and point.isValid
+            and checkbox is not None
+            and checkbox.isValid
+            and checkbox.value
+        )
+    ]
+
+
+def _selected_position_entries(inputs):
+    sketch = _selected_position_sketch(inputs.itemById('position_sketch'))
+    return [
+        (index, point)
+        for index, (point, checkbox) in enumerate(
+            _position_candidate_entries, start=1
+        )
+        if (
+            sketch is not None
+            and point.isValid
+            and checkbox is not None
+            and checkbox.isValid
+            and checkbox.value
+        )
+    ]
+
+
+def _update_position_candidate_status(inputs):
+    status_input = inputs.itemById('point_status')
+    if status_input is None:
+        return
+    sketch = _selected_position_sketch(inputs.itemById('position_sketch'))
+    point_count = len(_position_sketch_points(sketch))
+    selected_count = len(_selected_position_points(inputs))
+    new_status = f'{point_count} position point(s) detected; {selected_count} selected.'
+    if status_input.text != new_status:
+        status_input.text = new_status
+    selected_list_input = inputs.itemById('selected_position_list')
+    if selected_list_input is not None:
+        selected_entries = _selected_position_entries(inputs)
+        selected_text = (
+            '\n'.join(
+                f'Point {index}: {point.geometry.x:.3f}, '
+                f'{point.geometry.y:.3f} cm'
+                for index, point in selected_entries
+            )
+            if selected_entries
+            else 'No positions selected.'
+        )
+        if selected_list_input.text != selected_text:
+            selected_list_input.text = selected_text
+    _update_position_markers(sketch, _selected_position_points(inputs))
+
+
+def _delete_position_markers():
+    design = adsk.fusion.Design.cast(app.activeProduct)
+    if design is None:
+        return
+
+    graphics_groups = design.rootComponent.customGraphicsGroups
+    for index in range(graphics_groups.count - 1, -1, -1):
+        graphics_group = graphics_groups.item(index)
+        if graphics_group.name == POSITION_MARKER_GRAPHICS_NAME:
+            graphics_group.deleteMe()
+
+
+def _update_position_markers(sketch, selected_points):
+    _delete_position_markers()
+    if sketch is None or not selected_points:
+        app.activeViewport.refresh()
+        return
+
+    coordinates = []
+    marker_half_size_cm = 0.18
+    for point in selected_points:
+        sketch_position = point.geometry
+        marker_endpoints = (
+            adsk.core.Point3D.create(
+                sketch_position.x - marker_half_size_cm,
+                sketch_position.y,
+                sketch_position.z,
+            ),
+            adsk.core.Point3D.create(
+                sketch_position.x + marker_half_size_cm,
+                sketch_position.y,
+                sketch_position.z,
+            ),
+            adsk.core.Point3D.create(
+                sketch_position.x,
+                sketch_position.y - marker_half_size_cm,
+                sketch_position.z,
+            ),
+            adsk.core.Point3D.create(
+                sketch_position.x,
+                sketch_position.y + marker_half_size_cm,
+                sketch_position.z,
+            ),
+        )
+        for endpoint in marker_endpoints:
+            model_endpoint = sketch.sketchToModelSpace(endpoint)
+            if model_endpoint is None:
+                continue
+            coordinates.extend(
+                [model_endpoint.x, model_endpoint.y, model_endpoint.z]
+            )
+
+    if not coordinates:
+        app.activeViewport.refresh()
+        return
+
+    design = adsk.fusion.Design.cast(app.activeProduct)
+    marker_group = design.rootComponent.customGraphicsGroups.add()
+    marker_group.name = POSITION_MARKER_GRAPHICS_NAME
+    marker_coordinates = adsk.fusion.CustomGraphicsCoordinates.create(coordinates)
+    marker_lines = marker_group.addLines(marker_coordinates, [], False)
+    marker_lines.name = POSITION_MARKER_GRAPHICS_NAME
+    marker_lines.weight = 4
+    marker_lines.color = adsk.fusion.CustomGraphicsShowThroughColorEffect.create(
+        adsk.core.Color.create(255, 40, 20, 255),
+        1.0,
+    )
+    app.activeViewport.refresh()
+
+
 def _inspect_position_sketch(inputs: adsk.core.CommandInputs):
     sketch_input = inputs.itemById('position_sketch')
     if sketch_input is None or sketch_input.selectionCount != 1:
@@ -299,7 +470,7 @@ def _inspect_position_sketch(inputs: adsk.core.CommandInputs):
         return
 
     sketch = _selected_position_sketch(sketch_input)
-    points = _position_sketch_points(sketch)
+    points = _selected_position_points(inputs)
     if not points:
         ui.messageBox('No position points were found.', CMD_NAME)
         return
@@ -324,7 +495,10 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
     sketch_input = inputs.itemById('position_sketch')
     diameter_input = inputs.itemById('connector_diameter')
     sketch = _selected_position_sketch(sketch_input)
-    points = _position_sketch_points(sketch)
+    selected_entries = _selected_position_entries(inputs)
+    selected_numbers = [index for index, _point in selected_entries]
+    points = [point for _index, point in selected_entries]
+    futil.log(f'Connector profile candidates selected: {selected_numbers}')
     if sketch is None or not points or diameter_input is None or diameter_input.value <= 0:
         ui.messageBox('Select a position sketch and enter a positive diameter.', CMD_NAME)
         return
@@ -337,50 +511,61 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
         return
 
     operation_suffix = name_match.group(1)
-    profile_name = f'SJP_ConnectorProfile_{operation_suffix}_01'
     component = sketch.parentComponent
-    for index in range(component.sketches.count):
-        if component.sketches.item(index).name == profile_name:
+    profile_names = [
+        f'SJP_ConnectorProfile_{operation_suffix}_{index:02d}'
+        for index in range(1, len(points) + 1)
+    ]
+    existing_names = {
+        component.sketches.item(index).name
+        for index in range(component.sketches.count)
+    }
+    for profile_name in profile_names:
+        if profile_name in existing_names:
             ui.messageBox(
-                f'{profile_name} already exists. Delete it before repeating this test.',
+                f'{profile_name} already exists. Delete the existing connector profile '
+                'sketches before repeating this test.',
                 CMD_NAME,
             )
             return
 
-    profile_sketch = None
+    profile_sketches = []
     try:
         reference_plane = sketch.referencePlane
         if reference_plane is None:
             raise RuntimeError('The position sketch has no planar reference.')
 
-        profile_sketch = component.sketches.addWithoutEdges(reference_plane)
-        if profile_sketch is None:
-            raise RuntimeError('Fusion could not create the connector profile sketch.')
-        profile_sketch.name = profile_name
-
-        _, model_position = _position_coordinates(sketch, points[0])
-        profile_center = profile_sketch.modelToSketchSpace(model_position)
-        if profile_center is None:
-            raise RuntimeError('Fusion could not transform the profile center.')
-
         radius = diameter_input.value / 2
-        circle = profile_sketch.sketchCurves.sketchCircles.addByCenterRadius(
-            profile_center, radius
-        )
-        if circle is None:
-            raise RuntimeError('Fusion could not create the round connector profile.')
+        for point, profile_name in zip(points, profile_names):
+            profile_sketch = component.sketches.addWithoutEdges(reference_plane)
+            if profile_sketch is None:
+                raise RuntimeError('Fusion could not create a connector profile sketch.')
+            profile_sketches.append(profile_sketch)
+            profile_sketch.name = profile_name
 
-        profile_sketch.isLightBulbOn = True
+            _, model_position = _position_coordinates(sketch, point)
+            profile_center = profile_sketch.modelToSketchSpace(model_position)
+            if profile_center is None:
+                raise RuntimeError('Fusion could not transform a profile center.')
+
+            circle = profile_sketch.sketchCurves.sketchCircles.addByCenterRadius(
+                profile_center, radius
+            )
+            if circle is None:
+                raise RuntimeError('Fusion could not create a round connector profile.')
+            profile_sketch.isLightBulbOn = True
+
         ui.messageBox(
-            f'Round connector profile created.\n\n'
-            f'Profile sketch: {profile_sketch.name}\n'
-            f'Position: Point 1 of {len(points)}\n'
+            f'{len(profile_sketches)} round connector profile(s) created.\n\n'
+            f'Selected candidates: {", ".join(str(number) for number in selected_numbers)}\n'
+            f'Profile sketches: {profile_names[0]} through {profile_names[-1]}\n'
             f'Diameter: {diameter_input.expression}',
             CMD_NAME,
         )
     except Exception as error:
-        if profile_sketch is not None and profile_sketch.isValid:
-            profile_sketch.deleteMe()
+        for profile_sketch in reversed(profile_sketches):
+            if profile_sketch.isValid:
+                profile_sketch.deleteMe()
         futil.log(
             f'Round connector profile failed: {error}', adsk.core.LogLevels.ErrorLogLevel
         )
@@ -602,7 +787,9 @@ def command_destroy(args: adsk.core.CommandEventArgs):
     # General logging for debug.
     futil.log(f'{CMD_NAME} Command Destroy Event')
 
-    global local_handlers
+    global local_handlers, _position_candidate_entries
+    _delete_position_markers()
+    _position_candidate_entries = []
     local_handlers = []
 
     if _pending_workflow_action == 'activate_sketch':

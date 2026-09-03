@@ -471,3 +471,57 @@ Planned follow-up confirmed during the Fusion test:
 - Detected position points will become selectable candidates rather than an automatically mandatory set.
 - The user will be able to enable or disable individual candidates and add custom points.
 - A four-corner arrangement must support selecting only two diagonal points before connector generation.
+
+## Version 0.4.1
+
+### Step 15 - Select individual position candidates
+
+Implemented:
+
+- Updated `version.py` and `SegmentJoinPilot.manifest` to version `0.4.1` as instructed by the project owner.
+- Added one enabled checkbox for every detected position point in `Set Point` mode.
+- Displayed each candidate's sketch-space coordinates and kept newly drawn custom sketch points in the same candidate list.
+- Required at least one enabled position candidate before the command can be confirmed.
+- Created one separately named round profile sketch for every enabled candidate, using the stable names `SJP_ConnectorProfile_NNN_01`, `_02`, and so on.
+- Added an all-or-nothing rollback if any selected profile cannot be created.
+- Checked all intended profile names for duplicates before creating geometry.
+- Corrected checkbox evaluation after the first Fusion test showed that disabled candidates were still processed.
+- Kept direct references to the dynamically created checkbox inputs and now reads their current values when validating and executing the command.
+- Added temporary viewport markers at all enabled candidates; the markers update immediately when a checkbox changes and are removed when the command closes.
+- Moved the candidate checkboxes out of the nested command-input group after the second Fusion test showed them as non-interactive controls.
+- Replaced image-based point markers with thick red cross markers drawn in the position-sketch plane and configured to show through model geometry.
+- Replaced the custom-graphics markers after the third Fusion test with a dedicated `SelectionCommandInput`, so Fusion itself highlights the enabled sketch points.
+- Synchronized the checkbox count and marker selection during `validateInputs` as well as `inputChanged`, because Fusion did not emit the expected change callback consistently for these dynamically added checkboxes.
+- Assigned a fresh internal command ID after Fusion continued to display the cached intermediate dialog without the native `Selected positions` input.
+- Added a read-only `Selected list` that shows the candidate number and local coordinates of every enabled position.
+- Removed the auxiliary native selection input after the next Fusion test showed that synchronizing it during validation could alter the primary sketch selection and restore all candidates before execution.
+- The profile generator now depends only on the checkbox state; visual confirmation remains available through the explicit selected-position list.
+- Corrected the profile-creation function itself after Fusion testing revealed that it still loaded every detected sketch point instead of the selected candidate subset.
+- Logged the selected candidate numbers immediately before profile creation and included them in the completion message for direct verification.
+- Assigned another fresh internal command ID so Fusion cannot reuse the dialog definition containing the removed auxiliary selection input.
+- Restored red cross markers after selected-profile generation was confirmed working.
+- Gave the temporary graphics group a stable SegmentJoinPilot-specific name and deletes every group with that name before rebuilding the markers, preventing stale four-point graphics from accumulating.
+- Rebuilds markers exclusively from the currently checked candidates and removes them when the command closes.
+
+Scope limitation:
+
+- Candidates are enabled by default and can be included or excluded only for the current command run.
+- Only the `Round` profile is available.
+- The circles are profile geometry only; they are not extruded and no sockets are cut.
+- The new profile sketches are not yet added to the existing operation timeline group.
+
+Fusion test:
+
+1. Stop and restart `SegmentJoinPilot` in the `Utilities > Add-Ins` dialog.
+2. Split a simple solid and draw a rectangle plus one separate sketch point in the automatically opened position sketch.
+3. Select `Finish Sketch` and verify that five enabled position candidates are shown with local coordinates.
+4. Disable two adjacent rectangle corners and the separate point, leaving two diagonal rectangle corners enabled.
+5. Confirm the command and verify that exactly `SJP_ConnectorProfile_001_01` and `SJP_ConnectorProfile_001_02` are created.
+6. Verify that each profile sketch contains exactly one circle and that the circles are centered on the two selected diagonal points.
+7. Repeat with all candidates disabled and verify that the command cannot be confirmed.
+8. Repeat with two candidates enabled while an expected profile sketch already exists and verify that no additional profile sketch is created.
+
+Test result: The first three Fusion tests exposed ineffective candidate filtering,
+non-interactive nested controls, and invisible custom-graphics markers. Candidate state
+is now synchronized through Fusion input validation and displayed in the explicit selected
+list without changing Fusion selections; the repeated Fusion test and project-owner confirmation are pending.
