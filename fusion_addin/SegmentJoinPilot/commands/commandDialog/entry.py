@@ -10,7 +10,7 @@ ui = app.userInterface
 
 
 # TODO *** Specify the command identity information. ***
-CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV047'
+CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV048'
 CMD_NAME = f'SegmentJoinPilot {__version__}'
 CMD_Description = 'Split models into printable segments and add alignment connectors.'
 
@@ -143,7 +143,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     inputs.addTextBoxCommandInput(
         'step_scope',
         '',
-        f'Version {__version__} stores persistent metadata on generated geometry.',
+        f'Version {__version__} adds optional lead-in chamfers to round connectors.',
         2,
         True,
     )
@@ -193,6 +193,12 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
         'mm',
         adsk.core.ValueInput.createByString('12 mm'),
     )
+    connector_inputs.addValueInput(
+        'lead_in_length',
+        'Lead-in chamfer',
+        'mm',
+        adsk.core.ValueInput.createByString('1 mm'),
+    )
 
     fit_group = inputs.addGroupCommandInput('fit_group', 'Fit')
     fit_group.isVisible = start_in_set_point_mode
@@ -230,6 +236,7 @@ def command_validate_inputs(args: adsk.core.ValidateInputsEventArgs):
         sketch_input = inputs.itemById('position_sketch')
         diameter_input = inputs.itemById('connector_diameter')
         length_input = inputs.itemById('connector_length')
+        lead_in_input = inputs.itemById('lead_in_length')
         clearance_input = inputs.itemById('radial_clearance')
         depth_clearance_input = inputs.itemById('depth_clearance')
         args.areInputsValid = (
@@ -240,6 +247,10 @@ def command_validate_inputs(args: adsk.core.ValidateInputsEventArgs):
             and diameter_input.value > 0
             and length_input is not None
             and length_input.value > 0
+            and lead_in_input is not None
+            and lead_in_input.value >= 0
+            and lead_in_input.value < diameter_input.value / 2
+            and lead_in_input.value < length_input.value / 2
             and clearance_input is not None
             and clearance_input.value >= 0
             and depth_clearance_input is not None
@@ -527,6 +538,7 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
     sketch_input = inputs.itemById('position_sketch')
     diameter_input = inputs.itemById('connector_diameter')
     length_input = inputs.itemById('connector_length')
+    lead_in_input = inputs.itemById('lead_in_length')
     clearance_input = inputs.itemById('radial_clearance')
     depth_clearance_input = inputs.itemById('depth_clearance')
     sketch = _selected_position_sketch(sketch_input)
@@ -541,6 +553,10 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
         or diameter_input.value <= 0
         or length_input is None
         or length_input.value <= 0
+        or lead_in_input is None
+        or lead_in_input.value < 0
+        or lead_in_input.value >= diameter_input.value / 2
+        or lead_in_input.value >= length_input.value / 2
         or clearance_input is None
         or clearance_input.value < 0
         or depth_clearance_input is None
@@ -548,7 +564,8 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
     ):
         ui.messageBox(
             'Select at least one position, enter a positive diameter and length, '
-            'and use non-negative radial and depth clearances.',
+            'use non-negative clearances, and keep the lead-in chamfer smaller '
+            'than both the connector radius and half its total length.',
             CMD_NAME,
         )
         return
@@ -568,6 +585,10 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
     ]
     connector_names = [
         f'SJP_Connector_{operation_suffix}_{index:02d}'
+        for index in range(1, len(points) + 1)
+    ]
+    chamfer_names = [
+        f'SJP_ConnectorLeadIn_{operation_suffix}_{index:02d}'
         for index in range(1, len(points) + 1)
     ]
     socket_profile_names = [
@@ -620,6 +641,10 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
         component.features.combineFeatures.item(index).name
         for index in range(component.features.combineFeatures.count)
     }
+    existing_chamfer_names = {
+        component.features.chamferFeatures.item(index).name
+        for index in range(component.features.chamferFeatures.count)
+    }
     for connector_name in connector_names:
         if connector_name in existing_body_names or connector_name in existing_extrude_names:
             ui.messageBox(
@@ -628,6 +653,11 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
                 CMD_NAME,
             )
             return
+    if lead_in_input.value > 0:
+        for chamfer_name in chamfer_names:
+            if chamfer_name in existing_chamfer_names:
+                ui.messageBox(f'{chamfer_name} already exists.', CMD_NAME)
+                return
     for tool_names in socket_tool_names:
         for tool_name in tool_names:
             if tool_name in existing_body_names or tool_name in existing_extrude_names:
@@ -643,6 +673,7 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
     socket_profile_sketches = []
     connector_extrudes = []
     connector_bodies = []
+    connector_chamfers = []
     socket_tool_extrudes = []
     socket_tool_body_pairs = []
     socket_cut_features = []
@@ -655,8 +686,9 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
 
         radius = diameter_input.value / 2
         extrude_features = component.features.extrudeFeatures
-        for point, profile_name, connector_name, socket_profile_name, tool_names in zip(
-            points, profile_names, connector_names, socket_profile_names, socket_tool_names
+        chamfer_features = component.features.chamferFeatures
+        for point, profile_name, connector_name, chamfer_name, socket_profile_name, tool_names in zip(
+            points, profile_names, connector_names, chamfer_names, socket_profile_names, socket_tool_names
         ):
             profile_sketch = component.sketches.addWithoutEdges(reference_plane)
             if profile_sketch is None:
@@ -700,6 +732,30 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
             connector_body = connector_extrude.bodies.item(0)
             connector_body.name = connector_name
             connector_bodies.append(connector_body)
+
+            if lead_in_input.value > 0:
+                circular_edges = adsk.core.ObjectCollection.create()
+                for edge_index in range(connector_body.edges.count):
+                    edge = connector_body.edges.item(edge_index)
+                    if adsk.core.Circle3D.cast(edge.geometry) is not None:
+                        circular_edges.add(edge)
+                if circular_edges.count != 2:
+                    raise RuntimeError(
+                        f'{connector_name} does not have exactly two circular end edges.'
+                    )
+                chamfer_input = chamfer_features.createInput2()
+                if chamfer_input is None:
+                    raise RuntimeError('Fusion could not create the lead-in chamfer input.')
+                chamfer_input.chamferEdgeSets.addEqualDistanceChamferEdgeSet(
+                    circular_edges,
+                    adsk.core.ValueInput.createByReal(lead_in_input.value),
+                    False,
+                )
+                connector_chamfer = chamfer_features.add(chamfer_input)
+                if connector_chamfer is None:
+                    raise RuntimeError(f'Fusion could not create {chamfer_name}.')
+                connector_chamfers.append(connector_chamfer)
+                connector_chamfer.name = chamfer_name
 
             socket_profile_sketch = component.sketches.addWithoutEdges(reference_plane)
             if socket_profile_sketch is None:
@@ -822,6 +878,16 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
                 connectorIndex=str(index),
                 shape='Round',
                 clearance=str(clearance_input.value),
+                leadIn=str(lead_in_input.value),
+            )
+        for index, connector_chamfer in enumerate(connector_chamfers, start=1):
+            _add_sjp_attributes(
+                connector_chamfer,
+                created_attributes,
+                **common_attributes,
+                role='connectorLeadIn',
+                connectorIndex=str(index),
+                distance=str(lead_in_input.value),
             )
         for index, socket_cut in enumerate(socket_cut_features):
             _add_sjp_attributes(
@@ -843,6 +909,7 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
             f'Connector bodies: {connector_names[0]} through {connector_names[-1]}\n'
             f'Diameter: {diameter_input.expression}\n'
             f'Total length: {length_input.expression}\n'
+            f'Lead-in chamfer: {lead_in_input.expression}\n'
             f'Radial clearance per side: {clearance_input.expression}\n'
             f'Depth clearance: {depth_clearance_input.expression}',
             CMD_NAME,
@@ -859,6 +926,9 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
         for socket_tool_extrude in reversed(socket_tool_extrudes):
             if socket_tool_extrude.isValid:
                 socket_tool_extrude.deleteMe()
+        for connector_chamfer in reversed(connector_chamfers):
+            if connector_chamfer.isValid:
+                connector_chamfer.deleteMe()
         for connector_extrude in reversed(connector_extrudes):
             if connector_extrude.isValid:
                 connector_extrude.deleteMe()

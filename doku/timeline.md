@@ -2,9 +2,19 @@
 
 Diese Datei enthält die kompakte chronologische Übersicht aller freigegebenen und begonnenen Projektversionen. Ausführliche Implementierungsdetails, Testanleitungen und Testergebnisse werden weiterhin im [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) geführt.
 
-## 2026-09-03 — Version 0.4.7
+## 2026-09-03 — Version 0.4.8
 
 Status: Implementiert; Fusion-Test und Freigabe stehen aus.
+
+- Manifest und `version.py` auf `0.4.8` aktualisiert.
+- Optionale beidseitige Einführfase mit `1 mm` Standardwert für Rundverbinder ergänzt.
+- Grenzwertprüfung gegen Radius und halbe Gesamtlänge sowie `0 mm` zum Deaktivieren umgesetzt.
+- Fasen stabil benannt und in Namensprüfung, Rollback, Timeline-Gruppe und persistente Metadaten aufgenommen.
+- Socket-Öffnungen bleiben in diesem Schritt zylindrisch.
+
+## 2026-09-03 — Version 0.4.7
+
+Status: In Fusion getestet und vom Projektverantwortlichen freigegeben; keine Fehler gemeldet.
 
 - Manifest und `version.py` auf `0.4.7` aktualisiert.
 - Persistente Attribute der Gruppe `SegmentJoinPilot` an Split, Positionsskizze, Segmenten, Verbindern und Socket-Features gespeichert.

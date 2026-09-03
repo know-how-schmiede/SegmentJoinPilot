@@ -738,4 +738,37 @@ Fusion test:
 6. Verify socket features have `role=socket`, matching connector indices and segment sides, plus the configured clearance values.
 7. Save, close, and reopen the design and verify that the attributes remain available.
 
+Test result: Passed in Fusion and confirmed by the project owner. No errors were
+reported during the tested operation.
+
+## Version 0.4.8
+
+### Step 22 - Add optional connector lead-in chamfers
+
+Implemented:
+
+- Updated `version.py` and `SegmentJoinPilot.manifest` to version `0.4.8`.
+- Added a `Lead-in chamfer` connector input with a default value of `1 mm`.
+- Applied an equal-distance chamfer to both circular end edges of every separate round connector body.
+- Allowed `0 mm` to disable the lead-in without creating a chamfer feature.
+- Rejected negative values and values that reach either the connector radius or half the total connector length.
+- Named chamfer features `SJP_ConnectorLeadIn_NNN_II` and included them in duplicate-name checks and rollback.
+- Stored the lead-in distance on connector metadata and added persistent metadata to each chamfer feature.
+- Included the chamfer features in the existing complete-operation timeline group.
+
+Scope limitation:
+
+- This step chamfers the separate connector bodies only. The socket openings remain cylindrical.
+- Only equal-distance lead-ins are supported; angle and two-distance variants are not exposed.
+
+Fusion test:
+
+1. Stop and restart `SegmentJoinPilot`, select two positions, and retain the defaults `6 mm` diameter, `12 mm` total length, and `1 mm` lead-in.
+2. Complete the command and verify that two connector bodies and four socket cuts are created without an error.
+3. Verify that each connector has an equal `1 mm` chamfer at both circular ends and remains `12 mm` long overall with a `6 mm` maximum diameter.
+4. Verify that the socket geometry and both segment bodies remain otherwise unchanged.
+5. Inspect the timeline group and verify one `SJP_ConnectorLeadIn_NNN_II` feature per connector inside `SJP_Operation_NNN`.
+6. Repeat with `0 mm` and verify that the connector operation succeeds without chamfer features.
+7. With a `6 mm` diameter, enter `3 mm` and verify that the command cannot be confirmed.
+
 Test result: Pending Fusion test and project-owner confirmation.
