@@ -12,6 +12,12 @@ SegmentJoinPilot is an open-source Autodesk Fusion add-in for splitting large 3D
 
 The add-in is intended for makers, educators, model builders, and FDM users who need to divide models because of build-volume limits, print orientation, maintenance, assembly, or surface-quality requirements.
 
+## Know-How-Schmiede
+
+The [Know-How-Schmiede website](https://know-how-schmiede.de/) provides practical knowledge, projects, and tools covering CAD, programming, 3D printing, and model building.
+
+The [Know-How-Schmiede YouTube channel](https://www.youtube.com/channel/UCuEKsFW7ojVm20DLiC_2V2g) also features many tutorial videos about Autodesk Fusion 360, 3D design, and 3D printing.
+
 > Project status: Planning / initial development
 
 ## Planned workflow
@@ -114,4 +120,4 @@ Autodesk and Fusion are trademarks or registered trademarks of Autodesk, Inc. Se
 
 ## License
 
-A project license should be selected before the first public release. The MIT License is a practical default for a permissive open-source Fusion add-in.
+SegmentJoinPilot is released under the MIT License. The complete license text is available in the [LICENSE](LICENSE) file in the repository root.
