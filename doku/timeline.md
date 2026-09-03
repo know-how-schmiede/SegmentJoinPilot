@@ -2,9 +2,20 @@
 
 Diese Datei enthält die kompakte chronologische Übersicht aller freigegebenen und begonnenen Projektversionen. Ausführliche Implementierungsdetails, Testanleitungen und Testergebnisse werden weiterhin im [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) geführt.
 
-## 2026-09-03 — Version 0.4.2
+## 2026-09-03 — Version 0.4.3
 
 Status: Implementiert; Fusion-Test und Freigabe stehen aus.
+
+- Manifest und `version.py` auf `0.4.3` aktualisiert.
+- Fit-Gruppe mit radialem Spiel pro Seite und `0,20 mm` Standardwert ergänzt.
+- Pro ausgewähltem Verbinder ein konzentrisches, separat benanntes Socket-Profil erzeugt.
+- Socket-Durchmesser aus Verbinderdurchmesser plus zweimal radialem Spiel berechnet.
+- Namensprüfung und Rollback auf Socket-Profil-Sketches erweitert.
+- Noch keine Socket-Extrusion und keine Schnitte in den Segmenten erzeugt.
+
+## 2026-09-03 — Version 0.4.2
+
+Status: In Fusion getestet und vom Projektverantwortlichen freigegeben.
 
 - Manifest und `version.py` auf `0.4.2` aktualisiert.
 - Eingabe für die Gesamtlänge mit `12 mm` Standardwert ergänzt.

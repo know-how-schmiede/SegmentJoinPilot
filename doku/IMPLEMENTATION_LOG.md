@@ -564,4 +564,42 @@ Fusion test:
 9. Verify that the two original segment bodies remain unchanged and that no socket cuts exist.
 10. Repeat with a zero or negative total length and verify that the command cannot be confirmed.
 
+Test result: Passed in Fusion and confirmed by the project owner. Two selected points
+produced exactly two separate round connector bodies with the configured diameter and
+total symmetric length.
+
+## Version 0.4.3
+
+### Step 17 - Create clearance-adjusted round socket profiles
+
+Implemented:
+
+- Updated `version.py` and `SegmentJoinPilot.manifest` to version `0.4.3` as instructed by the project owner.
+- Added a `Fit` group with `Radial clearance per side`, defaulting to `0.20 mm`.
+- Required radial clearance to be zero or positive.
+- Created one separate `SJP_SocketProfile_NNN_II` sketch for every selected connector position.
+- Reused the connector center in model space so socket profiles remain aligned on angled split planes.
+- Set the socket radius to connector radius plus radial clearance, making the resulting socket diameter equal to connector diameter plus twice the configured clearance.
+- Added duplicate-name checks and extended all-or-nothing rollback to the socket profile sketches.
+
+Scope limitation:
+
+- This step creates and exposes the socket profile circles for measurement only.
+- The socket profiles are not extruded and neither segment is cut yet.
+- Depth allowance is not included until socket depth is introduced.
+- Only the round connector shape is supported.
+
+Fusion test:
+
+1. Stop and restart `SegmentJoinPilot` in the `Utilities > Add-Ins` dialog.
+2. Split a solid, create four candidates, and enable two diagonal points.
+3. Set `Diameter` to `6 mm`, `Total length` to `12 mm`, and `Radial clearance per side` to `0.20 mm`.
+4. Confirm the command.
+5. Verify that exactly two connector bodies and two `SJP_SocketProfile_NNN_II` sketches are created.
+6. Verify that every connector body has a diameter of `6.00 mm`.
+7. Show and measure each socket profile; verify a diameter of `6.40 mm` and concentric alignment with its connector.
+8. Repeat on an angled split plane and verify that connector and socket profile axes remain aligned.
+9. Verify that no socket solid or cut feature is created and both segment bodies remain unchanged.
+10. Enter a negative radial clearance and verify that the command cannot be confirmed.
+
 Test result: Pending Fusion test and project-owner confirmation.
