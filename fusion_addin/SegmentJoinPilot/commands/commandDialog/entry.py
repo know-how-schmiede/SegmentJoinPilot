@@ -1,5 +1,6 @@
 import adsk.core
 import adsk.fusion
+import math
 import os
 import re
 from ...lib import fusionAddInUtils as futil
@@ -10,7 +11,7 @@ ui = app.userInterface
 
 
 # TODO *** Specify the command identity information. ***
-CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV048'
+CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV049'
 CMD_NAME = f'SegmentJoinPilot {__version__}'
 CMD_Description = 'Split models into printable segments and add alignment connectors.'
 
@@ -143,7 +144,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     inputs.addTextBoxCommandInput(
         'step_scope',
         '',
-        f'Version {__version__} adds optional lead-in chamfers to round connectors.',
+        f'Version {__version__} adds D-shaped connectors and matching sockets.',
         2,
         True,
     )
@@ -181,6 +182,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
         'connector_shape', 'Shape', adsk.core.DropDownStyles.TextListDropDownStyle
     )
     shape_input.listItems.add('Round', True, '')
+    shape_input.listItems.add('D-shaped', False, '')
     connector_inputs.addValueInput(
         'connector_diameter',
         'Diameter',
@@ -534,8 +536,9 @@ def _inspect_position_sketch(inputs: adsk.core.CommandInputs):
     )
 
 
-def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
+def _create_connector_geometry(inputs: adsk.core.CommandInputs):
     sketch_input = inputs.itemById('position_sketch')
+    shape_input = inputs.itemById('connector_shape')
     diameter_input = inputs.itemById('connector_diameter')
     length_input = inputs.itemById('connector_length')
     lead_in_input = inputs.itemById('lead_in_length')
@@ -545,10 +548,16 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
     selected_entries = _selected_position_entries(inputs)
     selected_numbers = [index for index, _point in selected_entries]
     points = [point for _index, point in selected_entries]
+    shape = (
+        shape_input.selectedItem.name
+        if shape_input is not None and shape_input.selectedItem is not None
+        else None
+    )
     futil.log(f'Connector profile candidates selected: {selected_numbers}')
     if (
         sketch is None
         or not points
+        or shape not in ('Round', 'D-shaped')
         or diameter_input is None
         or diameter_input.value <= 0
         or length_input is None
@@ -563,7 +572,8 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
         or depth_clearance_input.value < 0
     ):
         ui.messageBox(
-            'Select at least one position, enter a positive diameter and length, '
+            'Select a supported shape and at least one position, enter a positive '
+            'diameter and length, '
             'use non-negative clearances, and keep the lead-in chamfer smaller '
             'than both the connector radius and half its total length.',
             CMD_NAME,
@@ -701,11 +711,7 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
             if profile_center is None:
                 raise RuntimeError('Fusion could not transform a profile center.')
 
-            circle = profile_sketch.sketchCurves.sketchCircles.addByCenterRadius(
-                profile_center, radius
-            )
-            if circle is None:
-                raise RuntimeError('Fusion could not create a round connector profile.')
+            _add_connector_profile(profile_sketch, profile_center, radius, shape)
             profile_sketch.isLightBulbOn = True
 
             if profile_sketch.profiles.count != 1:
@@ -734,20 +740,12 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
             connector_bodies.append(connector_body)
 
             if lead_in_input.value > 0:
-                circular_edges = adsk.core.ObjectCollection.create()
-                for edge_index in range(connector_body.edges.count):
-                    edge = connector_body.edges.item(edge_index)
-                    if adsk.core.Circle3D.cast(edge.geometry) is not None:
-                        circular_edges.add(edge)
-                if circular_edges.count != 2:
-                    raise RuntimeError(
-                        f'{connector_name} does not have exactly two circular end edges.'
-                    )
+                end_edges = _extrude_end_edges(connector_extrude)
                 chamfer_input = chamfer_features.createInput2()
                 if chamfer_input is None:
                     raise RuntimeError('Fusion could not create the lead-in chamfer input.')
                 chamfer_input.chamferEdgeSets.addEqualDistanceChamferEdgeSet(
-                    circular_edges,
+                    end_edges,
                     adsk.core.ValueInput.createByReal(lead_in_input.value),
                     False,
                 )
@@ -767,14 +765,18 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
             if socket_center is None:
                 raise RuntimeError('Fusion could not transform a socket profile center.')
             socket_radius = radius + clearance_input.value
-            socket_circle = (
-                socket_profile_sketch.sketchCurves.sketchCircles.addByCenterRadius(
-                    socket_center, socket_radius
-                )
+            _add_connector_profile(
+                socket_profile_sketch,
+                socket_center,
+                socket_radius,
+                shape,
+                clearance_input.value,
             )
-            if socket_circle is None:
-                raise RuntimeError('Fusion could not create a round socket profile.')
             socket_profile_sketch.isLightBulbOn = True
+            if socket_profile_sketch.profiles.count != 1:
+                raise RuntimeError(
+                    f'{socket_profile_name} did not produce exactly one closed profile.'
+                )
 
             socket_depth = length_input.value / 2 + depth_clearance_input.value
             directions = (
@@ -876,7 +878,7 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
                 **common_attributes,
                 role='connector',
                 connectorIndex=str(index),
-                shape='Round',
+                shape=shape,
                 clearance=str(clearance_input.value),
                 leadIn=str(lead_in_input.value),
             )
@@ -897,7 +899,7 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
                 role='socket',
                 connectorIndex=str(index // 2 + 1),
                 segment='A' if index % 2 == 0 else 'B',
-                shape='Round',
+                shape=shape,
                 clearance=str(clearance_input.value),
                 depthClearance=str(depth_clearance_input.value),
             )
@@ -907,6 +909,7 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
             f'{len(socket_cut_features)} socket cut(s) created.\n\n'
             f'Selected candidates: {", ".join(str(number) for number in selected_numbers)}\n'
             f'Connector bodies: {connector_names[0]} through {connector_names[-1]}\n'
+            f'Shape: {shape}\n'
             f'Diameter: {diameter_input.expression}\n'
             f'Total length: {length_input.expression}\n'
             f'Lead-in chamfer: {lead_in_input.expression}\n'
@@ -939,11 +942,59 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
             if profile_sketch.isValid:
                 profile_sketch.deleteMe()
         futil.log(
-            f'Round connector profile failed: {error}', adsk.core.LogLevels.ErrorLogLevel
+            f'Connector geometry failed: {error}', adsk.core.LogLevels.ErrorLogLevel
         )
         ui.messageBox(
             f'The connector operation could not be created.\n\n{error}', CMD_NAME
         )
+
+
+def _add_connector_profile(sketch, center, radius, shape, flat_offset=0.0):
+    if shape == 'Round':
+        circle = sketch.sketchCurves.sketchCircles.addByCenterRadius(center, radius)
+        if circle is None:
+            raise RuntimeError('Fusion could not create a round connector profile.')
+        return
+
+    if shape != 'D-shaped':
+        raise RuntimeError(f'Unsupported connector shape: {shape}')
+
+    # The base D cuts the source circle at half its radius. For the socket, the
+    # arc and flat side are both offset outward by the configured radial clearance.
+    chord_x = -radius / 2 if flat_offset == 0 else -(radius - flat_offset) / 2 - flat_offset
+    chord_height_squared = radius * radius - chord_x * chord_x
+    if chord_height_squared <= 0:
+        raise RuntimeError('The D-shaped profile dimensions are invalid.')
+    chord_y = math.sqrt(chord_height_squared)
+    center_point = adsk.core.Point3D.create(center.x, center.y, center.z)
+    start_point = adsk.core.Point3D.create(
+        center.x + chord_x, center.y - chord_y, center.z
+    )
+    start_angle = math.atan2(-chord_y, chord_x)
+    sweep_angle = -2 * start_angle
+    arc = sketch.sketchCurves.sketchArcs.addByCenterStartSweep(
+        center_point, start_point, sweep_angle
+    )
+    if arc is None:
+        raise RuntimeError('Fusion could not create the D-shaped profile arc.')
+    flat = sketch.sketchCurves.sketchLines.addByTwoPoints(
+        arc.endSketchPoint, arc.startSketchPoint
+    )
+    if flat is None:
+        raise RuntimeError('Fusion could not create the D-shaped profile flat side.')
+
+
+def _extrude_end_edges(extrude_feature):
+    edges = adsk.core.ObjectCollection.create()
+    for faces in (extrude_feature.startFaces, extrude_feature.endFaces):
+        if faces is None or faces.count != 1:
+            raise RuntimeError('Fusion could not identify one face at each connector end.')
+        face = faces.item(0)
+        for edge_index in range(face.edges.count):
+            edges.add(face.edges.item(edge_index))
+    if edges.count < 2:
+        raise RuntimeError('Fusion could not identify the connector end edges.')
+    return edges
 
 
 def _position_coordinates(sketch: adsk.fusion.Sketch, point: adsk.fusion.SketchPoint):
@@ -1055,7 +1106,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
 
     inputs = args.command.commandInputs
     if _is_inspect_mode(inputs):
-        _create_round_connector_profile(inputs)
+        _create_connector_geometry(inputs)
         return
 
     if not _selections_intersect(inputs):

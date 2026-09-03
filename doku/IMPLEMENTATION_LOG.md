@@ -771,4 +771,77 @@ Fusion test:
 6. Repeat with `0 mm` and verify that the connector operation succeeds without chamfer features.
 7. With a `6 mm` diameter, enter `3 mm` and verify that the command cannot be confirmed.
 
-Test result: Pending Fusion test and project-owner confirmation.
+Test result: Passed in Fusion and confirmed by the project owner.
+
+## Version 0.4.9
+
+### Step 23 - Add D-shaped connectors
+
+Implemented:
+
+- Updated `version.py` and `SegmentJoinPilot.manifest` to version `0.4.9`.
+- Added `D-shaped` to the connector shape selector while retaining `Round` as the default.
+- Defined the D profile as a circular contour truncated by a flat side at half the source radius.
+- Created the D contour from one major circular arc and its closing flat line.
+- Generated matching D-shaped socket profiles by offsetting both the curved radius and flat side by the configured radial clearance.
+- Reused the existing symmetric extrusion, socket cutting, depth clearance, naming, metadata, timeline grouping, and rollback pipeline.
+- Generalized lead-in edge discovery to all boundary edges of both extrusion end faces, allowing the existing optional chamfer to work for round and D-shaped connectors.
+- Added an explicit one-profile check to each generated socket sketch.
+
+Scope limitation:
+
+- The displayed diameter is the diameter of the source circle defining the D profile. With the fixed flat at half-radius, its overall flat-to-curve width is 75 percent of that diameter.
+- The flat side orientation follows the local positive/negative X direction of the position sketch and is not independently rotatable yet.
+- Oval, rounded rectangle, and hexagon remain future individual profile steps.
+
+Fusion test:
+
+1. Stop and restart `SegmentJoinPilot` and begin a connector operation with two selected positions.
+2. Select `D-shaped`, retain `6 mm` diameter, `12 mm` total length, `1 mm` lead-in, `0.20 mm` radial clearance, and `0.30 mm` depth clearance.
+3. Complete the command and verify that exactly two separate D-shaped connector bodies and four matching D-shaped socket cuts are created.
+4. Verify that each connector has one flat side, one curved side, and a lead-in chamfer at both ends.
+5. Verify that the socket flat side and curved side both have visible clearance relative to the connector.
+6. Verify stable feature names, `shape=D-shaped` metadata, and inclusion in the `SJP_Operation_NNN` timeline group.
+7. Repeat once with `Round` and verify that the previously tested circular geometry still succeeds.
+
+Test result: Passed in Fusion and confirmed by the project owner.
+
+### Step 24 - Add the Windows installer
+
+Implemented without changing version `0.4.9`:
+
+- Added an Inno Setup 6 definition at `installer/SegmentJoinPilot.iss`.
+- Added `installer/build-installer.ps1` with an automatic manifest/installer version consistency check.
+- Configured a per-user installation without administrator rights in `%APPDATA%\Autodesk\Autodesk Fusion\API\AddIns\SegmentJoinPilot`.
+- Added English and German installer languages, uninstall support, maximum LZMA2 compression, and a Fusion restart notice.
+- Excluded Python caches and development-only `.vscode` files from the installation package.
+- Generated `installer/dist/SegmentJoinPilot-Setup-0.4.9.exe` successfully with Inno Setup 6.7.0.
+- Added installer build documentation and replaced the placeholder installation sections in both project READMEs.
+- Explicitly ignored generated installer binaries and installer logs while retaining the source and build scripts in Git.
+
+Verification:
+
+1. Build script completed successfully and produced the expected versioned executable.
+2. Inno Setup validated and compressed all packaged add-in files without warnings or errors.
+3. The installer itself was intentionally not executed during automated verification to avoid modifying the local Fusion installation.
+
+Manual installation test:
+
+1. Close Autodesk Fusion and run `installer/dist/SegmentJoinPilot-Setup-0.4.9.exe`.
+2. Complete the per-user installation without elevation.
+3. Verify the installed files under `%APPDATA%\Autodesk\Autodesk Fusion\API\AddIns\SegmentJoinPilot`.
+4. Restart Fusion and verify that SegmentJoinPilot 0.4.9 appears in **Utilities > Scripts and Add-Ins** and starts normally.
+5. Run one round or D-shaped connector operation.
+6. Uninstall SegmentJoinPilot through Windows Settings and verify that the installed add-in files are removed.
+
+Test result: Installer build passed; manual install/start/uninstall test pending.
+
+Installer correction after the first manual test:
+
+- The first setup used `%APPDATA%\Autodesk\Autodesk Fusion\API\AddIns\SegmentJoinPilot`, but the tested Fusion installation discovers manually copied add-ins under `%APPDATA%\Autodesk\Autodesk Fusion 360\API\AddIns\SegmentJoinPilot`.
+- Corrected `DefaultDirName` to the confirmed `Autodesk Fusion 360` directory.
+- Added `UsePreviousAppDir=no` because Inno Setup otherwise remembers and reuses the previous incorrect directory for the same application ID.
+- Added cleanup of the exact obsolete SegmentJoinPilot directory created by the incorrect installer.
+- Rebuilt the installer without changing version `0.4.9`.
+
+Correction test: Build verification passed; corrected installation in Fusion pending.

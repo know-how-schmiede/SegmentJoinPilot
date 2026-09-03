@@ -2,9 +2,25 @@
 
 Diese Datei enthält die kompakte chronologische Übersicht aller freigegebenen und begonnenen Projektversionen. Ausführliche Implementierungsdetails, Testanleitungen und Testergebnisse werden weiterhin im [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) geführt.
 
-## 2026-09-03 — Version 0.4.8
+## 2026-09-03 — Version 0.4.9
 
 Status: Implementiert; Fusion-Test und Freigabe stehen aus.
+
+- Manifest und `version.py` auf `0.4.9` aktualisiert.
+- D-förmiges Verbinderprofil als Kreisbogen mit definierter Flachseite ergänzt.
+- Passende D-förmige Socket-Kontur mit radialem Spiel an Bogen und Flachseite erzeugt.
+- Bestehende Extrusions-, Schnitt-, Fasen-, Timeline-, Metadaten- und Rollback-Pipeline wiederverwendet.
+- Fasen-Kantenerkennung für runde und D-förmige Stirnkonturen verallgemeinert.
+- D-förmige Verbinder wurden in Fusion getestet und vom Projektverantwortlichen freigegeben.
+- Inno-Setup-Skript und reproduzierbares PowerShell-Buildskript ohne Versionsänderung ergänzt.
+- Windows-Installer unter `installer/dist/SegmentJoinPilot-Setup-0.4.9.exe` erzeugt.
+- Installation erfolgt ohne Administratorrechte im benutzerspezifischen Fusion-Add-in-Ordner.
+- Installer-Buildausgaben in `.gitignore` aufgenommen; manueller Installations- und Deinstallationstest steht aus.
+- Ersten Installer-Test korrigiert: Zielpfad auf den in der getesteten Installation verwendeten Ordner `Autodesk Fusion 360\API\AddIns` geändert und Wiederverwendung des zuvor gespeicherten falschen Pfads deaktiviert.
+
+## 2026-09-03 — Version 0.4.8
+
+Status: In Fusion getestet und vom Projektverantwortlichen freigegeben.
 
 - Manifest und `version.py` auf `0.4.8` aktualisiert.
 - Optionale beidseitige Einführfase mit `1 mm` Standardwert für Rundverbinder ergänzt.
