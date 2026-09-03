@@ -10,7 +10,7 @@ ui = app.userInterface
 
 
 # TODO *** Specify the command identity information. ***
-CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV041CheckboxOnly'
+CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV042'
 CMD_NAME = f'SegmentJoinPilot {__version__}'
 CMD_Description = 'Split models into printable segments and add alignment connectors.'
 
@@ -143,7 +143,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     inputs.addTextBoxCommandInput(
         'step_scope',
         '',
-        f'Version {__version__} creates round test profiles at selected positions.',
+        f'Version {__version__} creates separate round connector bodies.',
         2,
         True,
     )
@@ -187,6 +187,12 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
         'mm',
         adsk.core.ValueInput.createByString('6 mm'),
     )
+    connector_inputs.addValueInput(
+        'connector_length',
+        'Total length',
+        'mm',
+        adsk.core.ValueInput.createByString('12 mm'),
+    )
 
     if start_in_set_point_mode:
         body_input.setSelectionLimits(0, 1)
@@ -207,12 +213,15 @@ def command_validate_inputs(args: adsk.core.ValidateInputsEventArgs):
         _update_position_candidate_status(inputs)
         sketch_input = inputs.itemById('position_sketch')
         diameter_input = inputs.itemById('connector_diameter')
+        length_input = inputs.itemById('connector_length')
         args.areInputsValid = (
             sketch_input is not None
             and sketch_input.selectionCount == 1
             and bool(_selected_position_points(inputs))
             and diameter_input is not None
             and diameter_input.value > 0
+            and length_input is not None
+            and length_input.value > 0
         )
     else:
         args.areInputsValid = _selections_intersect(inputs)
@@ -494,13 +503,24 @@ def _inspect_position_sketch(inputs: adsk.core.CommandInputs):
 def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
     sketch_input = inputs.itemById('position_sketch')
     diameter_input = inputs.itemById('connector_diameter')
+    length_input = inputs.itemById('connector_length')
     sketch = _selected_position_sketch(sketch_input)
     selected_entries = _selected_position_entries(inputs)
     selected_numbers = [index for index, _point in selected_entries]
     points = [point for _index, point in selected_entries]
     futil.log(f'Connector profile candidates selected: {selected_numbers}')
-    if sketch is None or not points or diameter_input is None or diameter_input.value <= 0:
-        ui.messageBox('Select a position sketch and enter a positive diameter.', CMD_NAME)
+    if (
+        sketch is None
+        or not points
+        or diameter_input is None
+        or diameter_input.value <= 0
+        or length_input is None
+        or length_input.value <= 0
+    ):
+        ui.messageBox(
+            'Select at least one position and enter a positive diameter and length.',
+            CMD_NAME,
+        )
         return
 
     name_match = POSITION_SKETCH_NAME_PATTERN.match(sketch.name)
@@ -516,6 +536,10 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
         f'SJP_ConnectorProfile_{operation_suffix}_{index:02d}'
         for index in range(1, len(points) + 1)
     ]
+    connector_names = [
+        f'SJP_Connector_{operation_suffix}_{index:02d}'
+        for index in range(1, len(points) + 1)
+    ]
     existing_names = {
         component.sketches.item(index).name
         for index in range(component.sketches.count)
@@ -528,15 +552,35 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
                 CMD_NAME,
             )
             return
+    existing_body_names = {
+        component.bRepBodies.item(index).name
+        for index in range(component.bRepBodies.count)
+    }
+    existing_extrude_names = {
+        component.features.extrudeFeatures.item(index).name
+        for index in range(component.features.extrudeFeatures.count)
+    }
+    for connector_name in connector_names:
+        if connector_name in existing_body_names or connector_name in existing_extrude_names:
+            ui.messageBox(
+                f'{connector_name} already exists. Delete the existing connector '
+                'geometry before repeating this operation.',
+                CMD_NAME,
+            )
+            return
 
     profile_sketches = []
+    connector_extrudes = []
     try:
         reference_plane = sketch.referencePlane
         if reference_plane is None:
             raise RuntimeError('The position sketch has no planar reference.')
 
         radius = diameter_input.value / 2
-        for point, profile_name in zip(points, profile_names):
+        extrude_features = component.features.extrudeFeatures
+        for point, profile_name, connector_name in zip(
+            points, profile_names, connector_names
+        ):
             profile_sketch = component.sketches.addWithoutEdges(reference_plane)
             if profile_sketch is None:
                 raise RuntimeError('Fusion could not create a connector profile sketch.')
@@ -555,14 +599,40 @@ def _create_round_connector_profile(inputs: adsk.core.CommandInputs):
                 raise RuntimeError('Fusion could not create a round connector profile.')
             profile_sketch.isLightBulbOn = True
 
+            if profile_sketch.profiles.count != 1:
+                raise RuntimeError(
+                    f'{profile_name} did not produce exactly one closed profile.'
+                )
+            extrude_input = extrude_features.createInput(
+                profile_sketch.profiles.item(0),
+                adsk.fusion.FeatureOperations.NewBodyFeatureOperation,
+            )
+            if extrude_input is None:
+                raise RuntimeError('Fusion could not create the connector extrusion input.')
+            if not extrude_input.setSymmetricExtent(
+                adsk.core.ValueInput.createByReal(length_input.value), True
+            ):
+                raise RuntimeError('Fusion could not set the symmetric connector length.')
+
+            connector_extrude = extrude_features.add(extrude_input)
+            if connector_extrude is None or connector_extrude.bodies.count != 1:
+                raise RuntimeError('Fusion could not create one connector body.')
+            connector_extrudes.append(connector_extrude)
+            connector_extrude.name = connector_name
+            connector_extrude.bodies.item(0).name = connector_name
+
         ui.messageBox(
-            f'{len(profile_sketches)} round connector profile(s) created.\n\n'
+            f'{len(connector_extrudes)} round connector body/bodies created.\n\n'
             f'Selected candidates: {", ".join(str(number) for number in selected_numbers)}\n'
-            f'Profile sketches: {profile_names[0]} through {profile_names[-1]}\n'
-            f'Diameter: {diameter_input.expression}',
+            f'Connector bodies: {connector_names[0]} through {connector_names[-1]}\n'
+            f'Diameter: {diameter_input.expression}\n'
+            f'Total length: {length_input.expression}',
             CMD_NAME,
         )
     except Exception as error:
+        for connector_extrude in reversed(connector_extrudes):
+            if connector_extrude.isValid:
+                connector_extrude.deleteMe()
         for profile_sketch in reversed(profile_sketches):
             if profile_sketch.isValid:
                 profile_sketch.deleteMe()

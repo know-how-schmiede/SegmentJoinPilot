@@ -2,9 +2,21 @@
 
 Diese Datei enthält die kompakte chronologische Übersicht aller freigegebenen und begonnenen Projektversionen. Ausführliche Implementierungsdetails, Testanleitungen und Testergebnisse werden weiterhin im [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) geführt.
 
-## 2026-09-03 — Version 0.4.1
+## 2026-09-03 — Version 0.4.2
 
 Status: Implementiert; Fusion-Test und Freigabe stehen aus.
+
+- Manifest und `version.py` auf `0.4.2` aktualisiert.
+- Eingabe für die Gesamtlänge mit `12 mm` Standardwert ergänzt.
+- Ausgewählte Rundprofile symmetrisch zur Schnittfläche extrudiert.
+- Pro ausgewähltem Punkt einen separat benannten Verbinderkörper erzeugt.
+- Vorabprüfung auf bestehende Profil-, Körper- und Feature-Namen ergänzt.
+- Vollständigen Rollback für Profil-Sketches und Verbinderextrusionen umgesetzt.
+- Noch keine toleranzbehafteten Taschen, Fasen oder Anschnitte erzeugt.
+
+## 2026-09-03 — Version 0.4.1
+
+Status: In Fusion getestet und vom Projektverantwortlichen freigegeben.
 
 - Manifest und `version.py` auf `0.4.1` aktualisiert.
 - Erkannte Positionspunkte als einzeln aktivierbare Kandidaten im Dialog ergänzt.

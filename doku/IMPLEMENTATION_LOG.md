@@ -525,3 +525,43 @@ Test result: The first three Fusion tests exposed ineffective candidate filterin
 non-interactive nested controls, and invisible custom-graphics markers. Candidate state
 is now synchronized through Fusion input validation and displayed in the explicit selected
 list without changing Fusion selections; the repeated Fusion test and project-owner confirmation are pending.
+
+Final test result: Passed in Fusion and confirmed by the project owner. Selecting two
+candidate points creates exactly two round profiles, and the red markers follow the active
+checkboxes.
+
+## Version 0.4.2
+
+### Step 16 - Create separate round connector bodies
+
+Implemented:
+
+- Updated `version.py` and `SegmentJoinPilot.manifest` to version `0.4.2` as instructed by the project owner.
+- Added a positive `Total length` input with a default value of `12 mm`.
+- Extruded every selected round profile symmetrically about the split plane using Fusion's `setSymmetricExtent` API.
+- Used `NewBodyFeatureOperation` so every selected position produces a separate connector body.
+- Named both the extrusion feature and resulting body `SJP_Connector_NNN_II`.
+- Checked profile-sketch, connector-body, and connector-feature names before creating geometry.
+- Extended rollback to delete all connector extrusions and profile sketches created by a failed command run.
+
+Scope limitation:
+
+- Connector length is split equally across both sides of the section plane.
+- Only round, straight connector bodies are created; lead-ins and chamfers are not included.
+- No clearance tools or sockets are created in either segment yet.
+- Connector features and profile sketches are not yet added to the operation timeline group.
+
+Fusion test:
+
+1. Stop and restart `SegmentJoinPilot` in the `Utilities > Add-Ins` dialog.
+2. Split a solid and create four candidate points on the position sketch.
+3. In `Set Point`, enable two diagonal candidates and disable the other two.
+4. Set `Diameter` to `6 mm` and `Total length` to `12 mm`.
+5. Confirm the command.
+6. Verify that exactly two connector bodies named `SJP_Connector_NNN_01` and `_02` are created.
+7. Measure both bodies and verify a diameter of `6 mm` and a total length of `12 mm`.
+8. Verify that each connector extends `6 mm` to either side of the split plane, including on an angled split plane.
+9. Verify that the two original segment bodies remain unchanged and that no socket cuts exist.
+10. Repeat with a zero or negative total length and verify that the command cannot be confirmed.
+
+Test result: Pending Fusion test and project-owner confirmation.
