@@ -2,9 +2,20 @@
 
 Diese Datei enthält die kompakte chronologische Übersicht aller freigegebenen und begonnenen Projektversionen. Ausführliche Implementierungsdetails, Testanleitungen und Testergebnisse werden weiterhin im [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) geführt.
 
-## 2026-09-03 — Version 0.4.3
+## 2026-09-03 — Version 0.4.4
 
 Status: Implementiert; Fusion-Test und Freigabe stehen aus.
+
+- Manifest und `version.py` auf `0.4.4` aktualisiert.
+- Tiefenzugabe mit `0,30 mm` Standardwert ergänzt.
+- Aus jedem Socket-Profil zwei einseitige Werkzeugkörper für Segment A und B erzeugt.
+- Werkzeugtiefe als halbe Verbinderlänge plus Tiefenzugabe berechnet.
+- Werkzeugkörper und Extrusionsfeatures stabil benannt sowie in Namensprüfung und Rollback aufgenommen.
+- Noch keine Schnitte in den Segmentkörpern erzeugt.
+
+## 2026-09-03 — Version 0.4.3
+
+Status: In Fusion getestet und vom Projektverantwortlichen freigegeben.
 
 - Manifest und `version.py` auf `0.4.3` aktualisiert.
 - Fit-Gruppe mit radialem Spiel pro Seite und `0,20 mm` Standardwert ergänzt.

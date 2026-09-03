@@ -602,4 +602,39 @@ Fusion test:
 9. Verify that no socket solid or cut feature is created and both segment bodies remain unchanged.
 10. Enter a negative radial clearance and verify that the command cannot be confirmed.
 
+Test result: Passed in Fusion and confirmed by the project owner. The socket profiles
+were concentric with the connector bodies and measured the expected clearance-adjusted diameter.
+
+## Version 0.4.4
+
+### Step 18 - Create socket tool bodies for both segment sides
+
+Implemented:
+
+- Updated `version.py` and `SegmentJoinPilot.manifest` to version `0.4.4` as instructed by the project owner.
+- Added `Depth clearance` with a default value of `0.30 mm` and non-negative validation.
+- Extruded every round socket profile once in each sketch-normal direction as separate new bodies.
+- Set each tool depth to half the connector length plus the configured depth clearance.
+- Named the negative-side and positive-side tools `SJP_SocketTool_A_NNN_II` and `SJP_SocketTool_B_NNN_II`, matching the position sketch's Segment A support-face orientation.
+- Added duplicate-name checks and rollback for all socket tool extrusion features.
+
+Scope limitation:
+
+- Socket tools remain visible as separate bodies for geometric verification.
+- Neither segment is cut in this step.
+- Segment A/B tool assignment relies on the position sketch created on Segment A's section face.
+- No lead-in or chamfer is included.
+
+Fusion test:
+
+1. Stop and restart `SegmentJoinPilot`.
+2. Split a solid and enable two diagonal connector candidates.
+3. Use `6 mm` diameter, `12 mm` total length, `0.20 mm` radial clearance, and `0.30 mm` depth clearance.
+4. Confirm the command.
+5. Verify that two connector bodies and four socket tool bodies are created.
+6. Verify each socket tool diameter is `6.40 mm`.
+7. Verify each socket tool depth is `6.30 mm` from the split plane.
+8. Verify each `_A_` tool extends into Segment A and each `_B_` tool into Segment B, including for an angled plane.
+9. Verify that the segment bodies remain uncut and the connector bodies remain separate.
+
 Test result: Pending Fusion test and project-owner confirmation.
