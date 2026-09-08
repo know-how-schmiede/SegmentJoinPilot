@@ -2,6 +2,15 @@
 
 Diese Datei enthält die kompakte chronologische Übersicht aller freigegebenen und begonnenen Projektversionen. Ausführliche Implementierungsdetails, Testanleitungen und Testergebnisse werden weiterhin im [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) geführt.
 
+## 2026-09-08 — Version 0.6.1
+
+Status: Implementiert; Praxistest in Fusion steht aus.
+
+- Versionsangaben, Command-ID und Installer auf `0.6.1` aktualisiert.
+- Aktuelle Trennfläche anhand der Positionsskizzen-Ebene und des zugehörigen Segmentkörpers ermittelt, ohne die Timeline zurückzusetzen.
+- Vollständigen Traceback für Fehler bei der Verbindererzeugung ergänzt.
+- Fünf automatisierte Regressionstests erfolgreich; Installer nach der Korrektur erneut gebaut.
+
 ## 2026-09-03 — Version 0.6.0
 
 Status: Implementiert; Fusion-Sprach- und Regressionstest stehen aus.

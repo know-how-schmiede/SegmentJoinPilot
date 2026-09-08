@@ -3,6 +3,7 @@ import adsk.fusion
 import math
 import os
 import re
+import traceback
 from ...lib import fusionAddInUtils as futil
 from ... import config
 from ...localization import tr
@@ -12,7 +13,7 @@ ui = app.userInterface
 
 
 # TODO *** Specify the command identity information. ***
-CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV060'
+CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_createSegmentJoinV061'
 CMD_NAME = f'SegmentJoinPilot {__version__}'
 CMD_Description = tr('command_description')
 
@@ -790,7 +791,7 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
     extended_timeline_group = None
     created_attributes = []
     try:
-        reference_plane = sketch.referencePlane
+        reference_plane = _position_sketch_reference_plane(sketch, operation_suffix)
         if reference_plane is None:
             raise RuntimeError('The position sketch has no planar reference.')
 
@@ -1096,9 +1097,33 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
             if profile_sketch.isValid:
                 profile_sketch.deleteMe()
         futil.log(
-            f'Connector geometry failed: {error}', adsk.core.LogLevels.ErrorLogLevel
+            f'Connector geometry failed: {error}\n{traceback.format_exc()}',
+            adsk.core.LogLevels.ErrorLogLevel,
         )
         ui.messageBox(tr('connector_failed', error=error), CMD_NAME)
+
+
+def _position_sketch_reference_plane(sketch, operation_suffix):
+    """Find the current section face without invalidating sketch features."""
+    # Reading referencePlane requires a history rollback for face-backed
+    # sketches. That can invalidate the selected sketch/point feature handles.
+    # All profile sketches are created before the socket cuts, so a current
+    # section face remains a usable support throughout profile creation.
+    origin = sketch.sketchToModelSpace(adsk.core.Point3D.create(0, 0, 0))
+    normal_point = sketch.sketchToModelSpace(adsk.core.Point3D.create(0, 0, 1))
+    if origin is None or normal_point is None:
+        raise RuntimeError('Fusion could not determine the position sketch plane.')
+    normal = origin.vectorTo(normal_point)
+    if not normal.normalize():
+        raise RuntimeError('The position sketch has no valid plane normal.')
+    plane = adsk.core.Plane.create(origin, normal)
+    body = _body_by_name(sketch.parentComponent, f'SJP_Segment_A_{operation_suffix}')
+    if body is None:
+        raise RuntimeError('Fusion could not find the position sketch segment body.')
+    faces = _find_section_faces(body, plane)
+    if not faces:
+        raise RuntimeError('Fusion could not find a current face on the position sketch plane.')
+    return max(faces, key=lambda face: face.area)
 
 
 def _add_connector_profile(
