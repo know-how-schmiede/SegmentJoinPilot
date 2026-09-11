@@ -1,5 +1,5 @@
 #define MyAppName "SegmentJoinPilot"
-#define MyAppVersion "0.6.1"
+#define MyAppVersion "0.6.2"
 #define MyAppPublisher "know-how-schmiede"
 #define MyAppURL "https://github.com/know-how-schmiede/SegmentJoinPilot"
 #define MyAppSource "..\fusion_addin\SegmentJoinPilot"
@@ -13,9 +13,9 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}/issues
 AppUpdatesURL={#MyAppURL}/releases
-DefaultDirName={userappdata}\Autodesk\Autodesk Fusion 360\API\AddIns\{#MyAppName}
+DefaultDirName={code:GetDefaultAddInDir}
 UsePreviousAppDir=no
-DisableDirPage=yes
+DisableDirPage=no
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=dist
@@ -33,9 +33,6 @@ Name: "german"; MessagesFile: "compiler:Languages\German.isl"
 [Files]
 Source: "{#MyAppSource}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: ".vscode\*,__pycache__\*,*.pyc,*.pyo"
 
-[InstallDelete]
-Type: filesandordirs; Name: "{userappdata}\Autodesk\Autodesk Fusion\API\AddIns\{#MyAppName}"
-
 [Messages]
 english.BeveledLabel=For Autodesk Fusion
 german.BeveledLabel=Für Autodesk Fusion
@@ -52,6 +49,27 @@ english.OpenAddInFolder=Open the installed add-in folder
 german.OpenAddInFolder=Installierten Add-in-Ordner öffnen
 
 [Code]
+function GetDefaultAddInDir(Param: String): String;
+var
+  FusionRoot, Fusion360Root, SelectedRoot: String;
+begin
+  FusionRoot := ExpandConstant('{userappdata}\Autodesk\Autodesk Fusion');
+  Fusion360Root := ExpandConstant('{userappdata}\Autodesk\Autodesk Fusion 360');
+  { Prefer an existing API directory, then a product directory.
+    If both exist, prefer the current product name. The user can override it. }
+  if DirExists(FusionRoot + '\API\AddIns') then
+    SelectedRoot := FusionRoot
+  else if DirExists(Fusion360Root + '\API\AddIns') then
+    SelectedRoot := Fusion360Root
+  else if DirExists(FusionRoot) then
+    SelectedRoot := FusionRoot
+  else if DirExists(Fusion360Root) then
+    SelectedRoot := Fusion360Root
+  else
+    SelectedRoot := FusionRoot;
+  Result := SelectedRoot + '\API\AddIns\{#MyAppName}';
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then

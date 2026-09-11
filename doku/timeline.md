@@ -2,6 +2,15 @@
 
 Diese Datei enthält die kompakte chronologische Übersicht aller freigegebenen und begonnenen Projektversionen. Ausführliche Implementierungsdetails, Testanleitungen und Testergebnisse werden weiterhin im [`IMPLEMENTATION_LOG.md`](IMPLEMENTATION_LOG.md) geführt.
 
+## 2026-09-11 — Version 0.6.2
+
+Status: Implementiert; Installer erfolgreich gebaut. Installation auf unterschiedlichen Fusion-Systemen und macOS nicht praktisch getestet.
+
+- Installer erkennt vorhandene Verzeichnisse unter `Autodesk Fusion` und `Autodesk Fusion 360`; Zielordner bleibt auswählbar.
+- Automatisches Löschen der Add-in-Kopie unter `Autodesk Fusion` entfernt.
+- Installer, Manifest und Laufzeitversion auf `0.6.2` erhöht.
+- [Installationsanleitung](INSTALLATION.md) für Windows-Installer, manuelle Installation und macOS mit Fehlerhilfe ergänzt und in beiden READMEs verlinkt. macOS mangels verfügbarem Mac ausdrücklich als ungetestet gekennzeichnet.
+
 ## 2026-09-08 — Version 0.6.1
 
 Status: Implementiert; Praxistest in Fusion steht aus.

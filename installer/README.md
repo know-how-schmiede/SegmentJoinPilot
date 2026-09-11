@@ -1,14 +1,17 @@
 # SegmentJoinPilot Windows installer
 
-The installer copies the add-in to Fusion's per-user add-in directory:
+The installer supports both per-user Fusion add-in directories:
 
 ```text
+%APPDATA%\Autodesk\Autodesk Fusion\API\AddIns\SegmentJoinPilot
 %APPDATA%\Autodesk\Autodesk Fusion 360\API\AddIns\SegmentJoinPilot
 ```
 
-No administrator rights are required.
+It first checks for existing `API\AddIns` directories, then product directories. At each level, `Autodesk Fusion` takes precedence over `Autodesk Fusion 360`. If neither exists, it defaults to `Autodesk Fusion`. The destination page is always shown so users can correct the choice, especially when both directories exist. Directory presence cannot prove which location Fusion uses.
 
-`UsePreviousAppDir=no` is set intentionally so an update cannot reuse the incorrect legacy installer path. During installation, the obsolete `%APPDATA%\Autodesk\Autodesk Fusion\API\AddIns\SegmentJoinPilot` folder created by the first installer build is removed.
+No administrator rights are required. `UsePreviousAppDir=no` ensures each update repeats detection instead of blindly reusing a previous installer path. For unattended installation, use Inno Setup's `/DIR="full destination path"` option when an explicit destination is needed.
+
+Version 0.6.2 no longer deletes the add-in under `Autodesk Fusion`. Only the selected destination is updated; other copies are preserved. See the [installation guide (German)](../doku/INSTALLATION.md) for activation, updates, duplicate copies, manual installation, macOS, and troubleshooting.
 
 ## Build
 

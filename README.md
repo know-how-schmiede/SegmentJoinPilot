@@ -96,9 +96,9 @@ SegmentJoinPilot/
 
 ## Installation
 
-On Windows, close Autodesk Fusion and run `SegmentJoinPilot-Setup-0.6.1.exe`. The installer copies the add-in to `%APPDATA%\Autodesk\Autodesk Fusion 360\API\AddIns\SegmentJoinPilot` and does not require administrator rights. Restart Fusion and open **Utilities > Scripts and Add-Ins** if the add-in is not started automatically.
+On Windows, close Autodesk Fusion and run `SegmentJoinPilot-Setup-0.6.2.exe`. The installer detects existing directories under **Autodesk Fusion** and **Autodesk Fusion 360** and lets you review and change the destination. No administrator rights are required.
 
-For development, the `fusion_addin/SegmentJoinPilot` folder can still be registered manually through Fusion's **Scripts and Add-Ins** dialog. Reproducible installer build instructions are available in [`installer/README.md`](installer/README.md).
+See the [installation and troubleshooting guide (German)](doku/INSTALLATION.md) for the Windows installer, manual installation, and macOS. **The macOS instructions are untested because no Mac is available.** Installer build instructions are in [`installer/README.md`](installer/README.md).
 
 ## Development principles
 
