@@ -44,7 +44,10 @@ SHAPE_LABEL_KEYS = {
     'Oval': 'oval',
     'Rounded rectangle': 'rounded_rectangle',
     'Hexagon': 'hexagon',
+    'Conical15': 'conical15',
+    'Conical30': 'conical30',
 }
+TAPER_ANGLES = {'Conical15': -15, 'Conical30': -30}
 _workflow_event = None
 _pending_workflow_action = None
 _workflow_sketch = None
@@ -52,6 +55,7 @@ _waiting_for_sketch_finish = False
 _startup_set_point_sketch = None
 _position_candidate_entries = []
 _position_candidate_generation = 0
+_position_marker_group = None
 
 # Fusion model geometry uses centimeters internally.
 PLANE_DISTANCE_TOLERANCE_CM = 1e-6
@@ -92,6 +96,8 @@ def start():
 # Executed when add-in is stopped.
 def stop():
     global _workflow_event
+
+    _delete_position_markers()
 
     # Get the various UI elements for this command
     workspace = ui.workspaces.itemById(WORKSPACE_ID)
@@ -230,6 +236,10 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
         adsk.core.ValueInput.createByString('1 mm'),
     )
 
+    connector_inputs.addTextBoxCommandInput(
+        'taper_status', '', '', 3, True
+    ).isVisible = False
+
     fit_group = inputs.addGroupCommandInput('fit_group', tr('fit'))
     fit_group.isVisible = start_in_set_point_mode
     fit_inputs = fit_group.children
@@ -253,16 +263,44 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
         _rebuild_position_candidate_inputs(inputs, startup_sketch)
 
     futil.add_handler(args.command.execute, command_execute, local_handlers=local_handlers)
+    futil.add_handler(args.command.executePreview, command_preview, local_handlers=local_handlers)
     futil.add_handler(args.command.inputChanged, command_input_changed, local_handlers=local_handlers)
     futil.add_handler(args.command.validateInputs, command_validate_inputs, local_handlers=local_handlers)
     futil.add_handler(args.command.destroy, command_destroy, local_handlers=local_handlers)
+
+
+def _taper_length_limit(shape, diameter, radial_clearance, depth_clearance):
+    """Total length in cm preserving half the initial diameter at both ends.
+
+    The socket must additionally retain a positive radius at its extra depth.
+    """
+    slope = math.tan(math.radians(abs(TAPER_ANGLES[shape])))
+    radius = diameter / 2
+    return 2 * min(
+        (radius / 2) / slope,
+        (radius + radial_clearance - PLANE_DISTANCE_TOLERANCE_CM) / slope - depth_clearance,
+    )
+
+
+def _taper_validation_message(inputs):
+    shape = _selected_connector_shape(inputs)
+    if shape not in TAPER_ANGLES:
+        return ''
+    limit = _taper_length_limit(
+        shape, inputs.itemById('connector_diameter').value,
+        inputs.itemById('radial_clearance').value,
+        inputs.itemById('depth_clearance').value,
+    )
+    if inputs.itemById('connector_length').value > limit:
+        return tr('taper_too_long', limit=math.floor(max(0, limit) * 1000) / 100)
+    return ''
 
 
 def command_validate_inputs(args: adsk.core.ValidateInputsEventArgs):
     command = adsk.core.Command.cast(args.firingEvent.sender)
     inputs = command.commandInputs if command is not None else args.inputs
     if _is_inspect_mode(inputs):
-        _update_position_candidate_status(inputs)
+        _update_position_candidate_status(inputs, update_markers=False)
         sketch_input = inputs.itemById('position_sketch')
         diameter_input = inputs.itemById('connector_diameter')
         height_input = inputs.itemById('connector_height')
@@ -272,6 +310,7 @@ def command_validate_inputs(args: adsk.core.ValidateInputsEventArgs):
         clearance_input = inputs.itemById('radial_clearance')
         depth_clearance_input = inputs.itemById('depth_clearance')
         shape = _selected_connector_shape(inputs)
+        lead_in = 0 if shape in TAPER_ANGLES else (lead_in_input.value if lead_in_input else 0)
         profile_half_size = (
             min(diameter_input.value, height_input.value) / 2
             if shape in ('Oval', 'Rounded rectangle')
@@ -280,7 +319,7 @@ def command_validate_inputs(args: adsk.core.ValidateInputsEventArgs):
             and height_input is not None
             and height_input.value > 0
             else diameter_input.value / 2
-            if shape in ('Round', 'D-shaped', 'Hexagon')
+            if shape in ('Round', 'D-shaped', 'Hexagon', 'Conical15', 'Conical30')
             and diameter_input is not None
             and diameter_input.value > 0
             else 0
@@ -291,9 +330,7 @@ def command_validate_inputs(args: adsk.core.ValidateInputsEventArgs):
             and bool(_selected_position_points(inputs))
             and diameter_input is not None
             and diameter_input.value > 0
-            and shape in (
-                'Round', 'D-shaped', 'Oval', 'Rounded rectangle', 'Hexagon'
-            )
+            and shape in SHAPE_LABEL_KEYS
             and (
                 shape not in ('Oval', 'Rounded rectangle')
                 or (height_input is not None and height_input.value > 0)
@@ -309,14 +346,20 @@ def command_validate_inputs(args: adsk.core.ValidateInputsEventArgs):
             and length_input is not None
             and length_input.value > 0
             and lead_in_input is not None
-            and lead_in_input.value >= 0
-            and lead_in_input.value < profile_half_size
-            and lead_in_input.value < length_input.value / 2
+            and lead_in >= 0
+            and lead_in < profile_half_size
+            and lead_in < length_input.value / 2
             and clearance_input is not None
             and clearance_input.value >= 0
             and depth_clearance_input is not None
             and depth_clearance_input.value >= 0
         )
+        taper_error = _taper_validation_message(inputs)
+        status = inputs.itemById('taper_status')
+        status.isVisible = shape in TAPER_ANGLES
+        status.numRows = 7 if taper_error else 3
+        status.text = taper_error or tr('taper_info')
+        args.areInputsValid = args.areInputsValid and not taper_error
     else:
         args.areInputsValid = _selections_intersect(inputs)
 
@@ -342,6 +385,9 @@ def command_input_changed(args: adsk.core.InputChangedEventArgs):
 
     if args.input.id == 'connector_shape':
         shape = _selected_connector_shape(args.inputs)
+        args.inputs.itemById('lead_in_length').isVisible = shape not in TAPER_ANGLES
+        args.inputs.itemById('connector_diameter').name = tr(
+            'section_diameter' if shape in TAPER_ANGLES else 'width_diameter')
         height_input = args.inputs.itemById('connector_height')
         if height_input is not None:
             height_input.isVisible = shape in ('Oval', 'Rounded rectangle')
@@ -502,7 +548,18 @@ def _selected_position_entries(inputs):
     ]
 
 
-def _update_position_candidate_status(inputs):
+def command_preview(args: adsk.core.CommandEventArgs):
+    # Fusion can roll back the previous preview after inputChanged. Rebuild
+    # markers here from the current checkboxes, after that rollback.
+    inputs = args.firingEvent.sender.commandInputs
+    sketch = (_selected_position_sketch(inputs.itemById('position_sketch'))
+              if _is_inspect_mode(inputs) else None)
+    _update_position_markers(sketch, _selected_position_points(inputs) if sketch else [])
+    # Markers alone are not the result: OK must still execute the geometry.
+    args.isValidResult = False
+
+
+def _update_position_candidate_status(inputs, update_markers=True):
     status_input = inputs.itemById('point_status')
     if status_input is None:
         return
@@ -528,10 +585,17 @@ def _update_position_candidate_status(inputs):
         )
         if selected_list_input.text != selected_text:
             selected_list_input.text = selected_text
-    _update_position_markers(sketch, _selected_position_points(inputs))
+    if update_markers:
+        _update_position_markers(sketch, _selected_position_points(inputs))
 
 
 def _delete_position_markers():
+    global _position_marker_group
+    # Retain the actual API object instead of relying only on a name lookup.
+    if _position_marker_group is not None and _position_marker_group.isValid:
+        _position_marker_group.isVisible = False
+        _position_marker_group.deleteMe()
+    _position_marker_group = None
     design = adsk.fusion.Design.cast(app.activeProduct)
     if design is None:
         return
@@ -539,11 +603,14 @@ def _delete_position_markers():
     graphics_groups = design.rootComponent.customGraphicsGroups
     for index in range(graphics_groups.count - 1, -1, -1):
         graphics_group = graphics_groups.item(index)
-        if graphics_group.name == POSITION_MARKER_GRAPHICS_NAME:
+        if (graphics_group.id == POSITION_MARKER_GRAPHICS_NAME
+                or graphics_group.name == POSITION_MARKER_GRAPHICS_NAME):
+            graphics_group.isVisible = False
             graphics_group.deleteMe()
 
 
 def _update_position_markers(sketch, selected_points):
+    global _position_marker_group
     _delete_position_markers()
     if sketch is None or not selected_points:
         app.activeViewport.refresh()
@@ -589,7 +656,11 @@ def _update_position_markers(sketch, selected_points):
 
     design = adsk.fusion.Design.cast(app.activeProduct)
     marker_group = design.rootComponent.customGraphicsGroups.add()
+    _position_marker_group = marker_group
+    marker_group.id = POSITION_MARKER_GRAPHICS_NAME
     marker_group.name = POSITION_MARKER_GRAPHICS_NAME
+    marker_group.isSelectable = False
+    marker_group.isChildrenSelectable = False
     marker_coordinates = adsk.fusion.CustomGraphicsCoordinates.create(coordinates)
     marker_lines = marker_group.addLines(marker_coordinates, [], False)
     marker_lines.name = POSITION_MARKER_GRAPHICS_NAME
@@ -645,6 +716,7 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
     points = [point for _index, point in selected_entries]
     shape = _selected_connector_shape(inputs)
     half_width = diameter_input.value / 2 if diameter_input is not None else 0
+    lead_in = 0 if shape in TAPER_ANGLES else (lead_in_input.value if lead_in_input else 0)
     half_height = (
         height_input.value / 2
         if shape in ('Oval', 'Rounded rectangle') and height_input is not None
@@ -655,9 +727,7 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
     if (
         sketch is None
         or not points
-        or shape not in (
-            'Round', 'D-shaped', 'Oval', 'Rounded rectangle', 'Hexagon'
-        )
+        or shape not in SHAPE_LABEL_KEYS
         or diameter_input is None
         or diameter_input.value <= 0
         or (
@@ -675,9 +745,9 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
         or length_input is None
         or length_input.value <= 0
         or lead_in_input is None
-        or lead_in_input.value < 0
-        or lead_in_input.value >= profile_half_size
-        or lead_in_input.value >= length_input.value / 2
+        or lead_in < 0
+        or lead_in >= profile_half_size
+        or lead_in >= length_input.value / 2
         or clearance_input is None
         or clearance_input.value < 0
         or depth_clearance_input is None
@@ -687,6 +757,11 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
             tr('invalid_connector'),
             CMD_NAME,
         )
+        return
+
+    taper_error = _taper_validation_message(inputs)
+    if taper_error:
+        ui.messageBox(taper_error, CMD_NAME)
         return
 
     name_match = POSITION_SKETCH_NAME_PATTERN.match(sketch.name)
@@ -764,7 +839,7 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
         if connector_name in existing_body_names or connector_name in existing_extrude_names:
             ui.messageBox(tr('already_exists', name=connector_name), CMD_NAME)
             return
-    if lead_in_input.value > 0:
+    if lead_in > 0:
         for chamfer_name in chamfer_names:
             if chamfer_name in existing_chamfer_names:
                 ui.messageBox(tr('already_exists', name=chamfer_name), CMD_NAME)
@@ -836,10 +911,18 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
             )
             if extrude_input is None:
                 raise RuntimeError('Fusion could not create the connector extrusion input.')
-            if not extrude_input.setSymmetricExtent(
-                adsk.core.ValueInput.createByReal(length_input.value), True
-            ):
-                raise RuntimeError('Fusion could not set the symmetric connector length.')
+            if shape in TAPER_ANGLES:
+                extent_a = adsk.fusion.DistanceExtentDefinition.create(
+                    adsk.core.ValueInput.createByReal(length_input.value / 2))
+                extent_b = adsk.fusion.DistanceExtentDefinition.create(
+                    adsk.core.ValueInput.createByReal(length_input.value / 2))
+                angle = adsk.core.ValueInput.createByReal(math.radians(TAPER_ANGLES[shape]))
+                extent_set = extrude_input.setTwoSidesExtent(extent_a, extent_b, angle, angle)
+            else:
+                extent_set = extrude_input.setSymmetricExtent(
+                    adsk.core.ValueInput.createByReal(length_input.value), True)
+            if not extent_set:
+                raise RuntimeError('Fusion could not set the connector length.')
 
             connector_extrude = extrude_features.add(extrude_input)
             if connector_extrude is not None:
@@ -851,14 +934,14 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
             connector_body.name = connector_name
             connector_bodies.append(connector_body)
 
-            if lead_in_input.value > 0:
+            if lead_in > 0:
                 end_edges = _extrude_end_edges(connector_extrude)
                 chamfer_input = chamfer_features.createInput2()
                 if chamfer_input is None:
                     raise RuntimeError('Fusion could not create the lead-in chamfer input.')
                 chamfer_input.chamferEdgeSets.addEqualDistanceChamferEdgeSet(
                     end_edges,
-                    adsk.core.ValueInput.createByReal(lead_in_input.value),
+                    adsk.core.ValueInput.createByReal(lead_in),
                     False,
                 )
                 connector_chamfer = chamfer_features.add(chamfer_input)
@@ -911,7 +994,8 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
                     adsk.fusion.FeatureOperations.NewBodyFeatureOperation,
                 )
                 if tool_input is None or not tool_input.setOneSideExtent(
-                    socket_extent, direction
+                    socket_extent, direction,
+                    adsk.core.ValueInput.createByReal(math.radians(TAPER_ANGLES.get(shape, 0)))
                 ):
                     raise RuntimeError('Fusion could not define a socket tool extrusion.')
                 tool_extrude = extrude_features.add(tool_input)
@@ -1011,7 +1095,7 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
                     else ''
                 ),
                 clearance=str(clearance_input.value),
-                leadIn=str(lead_in_input.value),
+                leadIn=str(lead_in),
             )
         for connector_index, connector_chamfer in zip(
             connector_indices, connector_chamfers
@@ -1022,7 +1106,7 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
                 **common_attributes,
                 role='connectorLeadIn',
                 connectorIndex=str(connector_index),
-                distance=str(lead_in_input.value),
+                distance=str(lead_in),
             )
         for index, socket_cut in enumerate(socket_cut_features):
             _add_sjp_attributes(
@@ -1067,7 +1151,7 @@ def _create_connector_geometry(inputs: adsk.core.CommandInputs):
             f'{height_summary}'
             f'{corner_summary}'
             f'{tr("total_length")}: {length_input.expression}\n'
-            f'{tr("lead_in")}: {lead_in_input.expression}\n'
+            f'{tr("lead_in")}: {"0 mm" if shape in TAPER_ANGLES else lead_in_input.expression}\n'
             f'{tr("radial_clearance")}: {clearance_input.expression}\n'
             f'{tr("depth_clearance")}: {depth_clearance_input.expression}',
             CMD_NAME,
@@ -1135,7 +1219,7 @@ def _add_connector_profile(
     half_height=None,
     corner_radius=None,
 ):
-    if shape == 'Round':
+    if shape == 'Round' or shape in TAPER_ANGLES:
         circle = sketch.sketchCurves.sketchCircles.addByCenterRadius(center, radius)
         if circle is None:
             raise RuntimeError('Fusion could not create a round connector profile.')

@@ -8,6 +8,11 @@ SUPPORTED_LANGUAGES = ('en', 'de', 'fr', 'es', 'pl')
 
 _TEXT = {
     'en': {
+        'conical15': 'Conical15',
+        'conical30': 'Conical30',
+        'section_diameter': 'Diameter at section',
+        'taper_info': 'Fixed taper; end diameter at least 50% of the section diameter for a 3D-printing contact surface. No additional chamfer.',
+        'taper_too_long': 'Too long: both ends must retain at least 50% of the section diameter for a 3D-printing contact surface. Socket depth clearance is also checked. Maximum total length: {limit:.2f} mm. Shorten the connector or increase its diameter; check clearances.',
         'command_description': 'Split models into printable segments and add alignment connectors.',
         'mode': 'Mode', 'create_split': 'Create split operation', 'set_point': 'Set Point',
         'split': 'Split', 'solid_body': 'Solid body',
@@ -48,6 +53,11 @@ _TEXT = {
         'selected_candidates': 'Selected candidates', 'connector_bodies': 'Connector bodies',
     },
     'de': {
+        'conical15': 'Konisch15',
+        'conical30': 'Konisch30',
+        'section_diameter': 'Durchmesser an der Schnittkante',
+        'taper_info': 'Feste Verjüngung; Enddurchmesser mindestens 50 % des Schnittdurchmessers für eine Auflagefläche beim 3D-Druck. Keine zusätzliche Einführfase.',
+        'taper_too_long': 'Zu lang: Für eine Auflagefläche beim 3D-Druck muss der Durchmesser an beiden Dübelenden mindestens 50 % des Ausgangsdurchmessers betragen. Das Tiefenspiel der Aufnahme wird ebenfalls geprüft. Maximale Gesamtlänge: {limit:.2f} mm. Dübel verkürzen oder Durchmesser erhöhen; Spiel prüfen.',
         'command_description': 'Modelle in druckbare Segmente teilen und Ausrichtungsverbinder hinzufügen.',
         'mode': 'Modus', 'create_split': 'Teilung erstellen', 'set_point': 'Punkte setzen',
         'split': 'Teilung', 'solid_body': 'Volumenkörper', 'select_body': 'Einen zu teilenden Volumenkörper auswählen.',
@@ -79,6 +89,11 @@ _TEXT = {
         'selected_candidates': 'Ausgewählte Positionen', 'connector_bodies': 'Verbinderkörper',
     },
     'fr': {
+        'conical15': 'Conique15',
+        'conical30': 'Conique30',
+        'section_diameter': 'Diamètre à la coupe',
+        'taper_info': 'Conicité fixe ; diamètre aux extrémités au moins égal à 50 % du diamètre à la coupe pour une surface d’appui en impression 3D. Sans chanfrein supplémentaire.',
+        'taper_too_long': 'Trop long : les deux extrémités doivent conserver au moins 50 % du diamètre à la coupe pour une surface d’appui en impression 3D. Le jeu en profondeur est aussi vérifié. Longueur totale maximale : {limit:.2f} mm. Réduisez la longueur ou augmentez le diamètre ; vérifiez les jeux.',
         'command_description': "Diviser les modèles en segments imprimables et ajouter des connecteurs d'alignement.",
         'mode': 'Mode', 'create_split': 'Créer une division', 'set_point': 'Définir les points', 'split': 'Division',
         'solid_body': 'Corps solide', 'select_body': 'Sélectionnez un corps solide à diviser.',
@@ -102,6 +117,11 @@ _TEXT = {
         'connector_success': '{connectors} corps de connecteur et {sockets} découpe(s) créés.', 'selected_candidates': 'Positions sélectionnées', 'connector_bodies': 'Corps de connecteur',
     },
     'es': {
+        'conical15': 'Cónico15',
+        'conical30': 'Cónico30',
+        'section_diameter': 'Diámetro en el corte',
+        'taper_info': 'Conicidad fija; diámetro en los extremos de al menos el 50 % del diámetro en el corte para apoyar la impresión 3D. Sin chaflán adicional.',
+        'taper_too_long': 'Demasiado largo: ambos extremos deben conservar al menos el 50 % del diámetro en el corte para apoyar la impresión 3D. También se comprueba la holgura de profundidad. Longitud total máxima: {limit:.2f} mm. Reduzca la longitud o aumente el diámetro; revise las holguras.',
         'command_description': 'Dividir modelos en segmentos imprimibles y añadir conectores de alineación.', 'mode': 'Modo', 'create_split': 'Crear división', 'set_point': 'Definir puntos',
         'split': 'División', 'solid_body': 'Cuerpo sólido', 'select_body': 'Seleccione un cuerpo sólido para dividir.', 'construction_plane': 'Plano de construcción', 'select_plane': 'Seleccione un plano de construcción como herramienta de división.',
         'scope': 'La versión {version} añade interfaces en inglés, alemán, francés, español y polaco.', 'validation': 'Validación', 'select_body_plane': 'Seleccione un cuerpo sólido y un plano de construcción.',
@@ -118,6 +138,11 @@ _TEXT = {
         'connector_success': 'Se crearon {connectors} cuerpo(s) de conector y {sockets} corte(s).', 'selected_candidates': 'Posiciones seleccionadas', 'connector_bodies': 'Cuerpos de conector',
     },
     'pl': {
+        'conical15': 'Stożkowy15',
+        'conical30': 'Stożkowy30',
+        'section_diameter': 'Średnica na przekroju',
+        'taper_info': 'Stałe zwężenie; średnica końców co najmniej 50% średnicy na przekroju zapewnia powierzchnię podparcia do druku 3D. Bez dodatkowej fazy.',
+        'taper_too_long': 'Zbyt długi: oba końce muszą zachować co najmniej 50% średnicy na przekroju, aby zapewnić powierzchnię podparcia do druku 3D. Sprawdzany jest także luz głębokości gniazda. Maksymalna długość całkowita: {limit:.2f} mm. Skróć łącznik lub zwiększ średnicę; sprawdź luzy.',
         'command_description': 'Dziel modele na segmenty do druku i dodawaj łączniki pozycjonujące.', 'mode': 'Tryb', 'create_split': 'Utwórz podział', 'set_point': 'Ustaw punkty',
         'split': 'Podział', 'solid_body': 'Bryła', 'select_body': 'Wybierz jedną bryłę do podziału.', 'construction_plane': 'Płaszczyzna konstrukcyjna', 'select_plane': 'Wybierz płaszczyznę konstrukcyjną jako narzędzie podziału.',
         'scope': 'Wersja {version} dodaje interfejs angielski, niemiecki, francuski, hiszpański i polski.', 'validation': 'Walidacja', 'select_body_plane': 'Wybierz bryłę i płaszczyznę konstrukcyjną.',
