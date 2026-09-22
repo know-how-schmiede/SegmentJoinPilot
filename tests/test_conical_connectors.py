@@ -4,15 +4,18 @@ import math
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import TestCase, main
+from unittest.mock import Mock
 
 
 SOURCE = (Path(__file__).resolve().parents[1] / 'fusion_addin'
           / 'SegmentJoinPilot' / 'commands' / 'commandDialog' / 'entry.py')
 tree = ast.parse(SOURCE.read_text(encoding='utf-8-sig'))
-names = {'_taper_length_limit', '_taper_validation_message'}
+names = {'_taper_length_limit', '_taper_validation_message', '_add_connector_profile'}
 nodes = [node for node in tree.body
          if isinstance(node, ast.FunctionDef) and node.name in names]
-namespace = dict(math=math, TAPER_ANGLES={'Conical15': -15, 'Conical30': -30},
+angles = next(node.value for node in tree.body if isinstance(node, ast.Assign)
+              and any(isinstance(t, ast.Name) and t.id == 'TAPER_ANGLES' for t in node.targets))
+namespace = dict(math=math, TAPER_ANGLES=ast.literal_eval(angles),
                  PLANE_DISTANCE_TOLERANCE_CM=1e-6,
                  _selected_connector_shape=lambda inputs: inputs.shape,
                  tr=lambda key, **kwargs: (key, kwargs))
@@ -39,7 +42,7 @@ class ConicalTests(TestCase):
         self.assertEqual(self.message('Conical30', 1.0)[0], 'taper_too_long')
 
     def test_half_diameter_allowed_but_smaller_end_rejected(self):
-        for shape in ('Conical15', 'Conical30'):
+        for shape in namespace['TAPER_ANGLES']:
             limit = self.limit(shape)
             self.assertEqual(self.message(shape, limit - 0.001), '')
             self.assertEqual(self.message(shape, limit), '')
@@ -62,6 +65,27 @@ class ConicalTests(TestCase):
     def test_impossible_socket_and_nonconical_shapes(self):
         self.assertTrue(self.message('Conical30', 0.1, radial=0, depth=1))
         self.assertEqual(self.message('Round', 100), '')
+
+    def test_hexagonal_limits_and_socket_depth(self):
+        for angle in (15, 30):
+            for radial, depth in ((0.02, 0.03), (0, 0.4)):
+                self.assertEqual(self.limit(f'HexConical{angle}', radial=radial, depth=depth),
+                                 self.limit(f'Conical{angle}', radial=radial, depth=depth))
+
+    def test_round_and_hexagonal_profile_routing_for_connector_and_socket(self):
+        hexagon = Mock()
+        namespace['_add_hexagon_profile'] = hexagon
+        sketch = Mock()
+        center = object()
+        for radius in (0.3, 0.32):
+            for angle in (15, 30):
+                namespace['_add_connector_profile'](sketch, center, radius, f'HexConical{angle}')
+                hexagon.assert_called_with(sketch, center, radius)
+                sketch.sketchCurves.sketchCircles.addByCenterRadius.assert_not_called()
+            for angle in (15, 30):
+                namespace['_add_connector_profile'](sketch, center, radius, f'Conical{angle}')
+                sketch.sketchCurves.sketchCircles.addByCenterRadius.assert_called_with(center, radius)
+            sketch.reset_mock()
 
 
 if __name__ == '__main__':

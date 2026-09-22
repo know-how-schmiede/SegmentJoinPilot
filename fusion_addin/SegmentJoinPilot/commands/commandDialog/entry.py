@@ -46,8 +46,13 @@ SHAPE_LABEL_KEYS = {
     'Hexagon': 'hexagon',
     'Conical15': 'conical15',
     'Conical30': 'conical30',
+    'HexConical15': 'hex_conical15',
+    'HexConical30': 'hex_conical30',
 }
-TAPER_ANGLES = {'Conical15': -15, 'Conical30': -30}
+TAPER_ANGLES = {
+    'Conical15': -15, 'Conical30': -30,
+    'HexConical15': -15, 'HexConical30': -30,
+}
 _workflow_event = None
 _pending_workflow_action = None
 _workflow_sketch = None
@@ -319,7 +324,7 @@ def command_validate_inputs(args: adsk.core.ValidateInputsEventArgs):
             and height_input is not None
             and height_input.value > 0
             else diameter_input.value / 2
-            if shape in ('Round', 'D-shaped', 'Hexagon', 'Conical15', 'Conical30')
+            if shape in ('Round', 'D-shaped', 'Hexagon', *TAPER_ANGLES)
             and diameter_input is not None
             and diameter_input.value > 0
             else 0
@@ -387,7 +392,8 @@ def command_input_changed(args: adsk.core.InputChangedEventArgs):
         shape = _selected_connector_shape(args.inputs)
         args.inputs.itemById('lead_in_length').isVisible = shape not in TAPER_ANGLES
         args.inputs.itemById('connector_diameter').name = tr(
-            'section_diameter' if shape in TAPER_ANGLES else 'width_diameter')
+            'section_width' if shape in ('HexConical15', 'HexConical30')
+            else 'section_diameter' if shape in TAPER_ANGLES else 'width_diameter')
         height_input = args.inputs.itemById('connector_height')
         if height_input is not None:
             height_input.isVisible = shape in ('Oval', 'Rounded rectangle')
@@ -1219,7 +1225,7 @@ def _add_connector_profile(
     half_height=None,
     corner_radius=None,
 ):
-    if shape == 'Round' or shape in TAPER_ANGLES:
+    if shape in ('Round', 'Conical15', 'Conical30'):
         circle = sketch.sketchCurves.sketchCircles.addByCenterRadius(center, radius)
         if circle is None:
             raise RuntimeError('Fusion could not create a round connector profile.')
@@ -1231,7 +1237,7 @@ def _add_connector_profile(
         )
         return
 
-    if shape == 'Hexagon':
+    if shape in ('Hexagon', 'HexConical15', 'HexConical30'):
         _add_hexagon_profile(sketch, center, radius)
         return
 

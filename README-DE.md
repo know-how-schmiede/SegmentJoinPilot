@@ -12,6 +12,10 @@ SegmentJoinPilot ist ein quelloffenes Autodesk-Fusion-Add-in, das große 3D-Mode
 
 Das Add-in richtet sich an Maker, Lehrende, Modellbauer und FDM-Anwender, die Modelle aufgrund von Bauraumgrenzen, Druckausrichtung, Wartung, Montage oder Anforderungen an die Oberflächenqualität aufteilen müssen.
 
+## Neu in Version 0.7.2
+
+Die runden Varianten heißen jetzt **RundKonisch15** und **RundKonisch30**. Neu sind **SechseckKonisch15** und **SechseckKonisch30** mit festen −15° bzw. −30° zu beiden Enden. Beim Sechseck wird die Schlüsselweite (Abstand gegenüberliegender Flächen) an der Schnittkante eingegeben. Die Enden behalten mindestens 50 % dieser Schlüsselweite; passende Aufnahmen berücksichtigen Radial- und Tiefenspiel. Eine zusätzliche Einführfase entfällt.
+
 ## Neu in Version 0.7.1
 
 Die Formen **Konisch15** und **Konisch30** verjüngen sich von der Schnittfläche aus zu beiden Enden mit fest eingestellten −15° bzw. −30°. Der Durchmesser wird an der Schnittkante angegeben. Die Aufnahmen übernehmen die Verjüngung sowie Radial- und Tiefenspiel. Die Längenprüfung erhält an beiden Dübelenden mindestens 50 % des Ausgangsdurchmessers als Auflagefläche für den 3D-Druck (25 % der ursprünglichen Kreisfläche). Zusätzlich verhindert sie, dass die Aufnahme einschließlich Tiefenspiel auf Radius null zuläuft. Die Warnung nennt die maximal zulässige Gesamtlänge. Die zusätzliche Einführfase entfällt bei diesen Formen.
