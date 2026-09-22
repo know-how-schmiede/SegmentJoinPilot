@@ -16,6 +16,16 @@ The add-in is intended for makers, educators, model builders, and FDM users who 
 
 The round variants are now named **RoundConical15** and **RoundConical30**. New **HexConical15** and **HexConical30** variants taper toward both ends at fixed −15° and −30° angles. Hexagon size is specified across flats at the section. Both ends retain at least 50% of that width; matching sockets include radial and depth clearance. No additional lead-in chamfer is applied.
 
+### Version 0.7.2 in action
+
+Round and hexagonal connectors with matching sockets in the split model:
+
+![SegmentJoinPilot 0.7.2: round and hexagonal connectors and sockets in the model](images/screenshots/SegmentJoinPilot_v072_1.png)
+
+A closer look at the separate connectors: both shapes taper from the section toward each end, retaining a flat contact surface for 3D printing.
+
+![Detail of round and hexagonal connectors tapering toward both ends](images/screenshots/SegmentJoinPilot_072_2.png)
+
 ## New in version 0.7.1
 
 **Conical15** and **Conical30** taper from the section toward both ends at fixed −15° and −30° angles. The diameter is measured at the section. Matching sockets include radial and depth clearance. Length validation preserves at least 50% of the initial diameter at both connector ends for a 3D-printing contact surface (25% of the original circular area). It also prevents sockets including depth clearance from reaching zero radius. The warning states the maximum total length. These shapes have no additional lead-in chamfer.
