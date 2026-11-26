@@ -1,6 +1,7 @@
 {
 	"autodeskProduct":	"Fusion",
 	"type":	"addin",
+	"id": "45656c9a-93ce-41d5-b4ba-544917f20e2b",
 	"author":	"Rene Triebenstein",
 	"description":	{
 		"":	"add-in for splitting large 3D models into printable segments and creating matching alignment connectors at user-defined positions"

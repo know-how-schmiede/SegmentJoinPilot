@@ -139,3 +139,13 @@ Autodesk and Fusion are trademarks or registered trademarks of Autodesk, Inc. Se
 ## License
 
 SegmentJoinPilot is released under the MIT License. The complete license text is available in the [LICENSE](LICENSE) file in the repository root.
+
+## Packaging a Fusion add-in release
+
+From the repository root, check out the release commit and run this command with Git (Bash or Git Bash). It packages the tracked runtime files under the folder name Fusion expects.
+
+```sh
+git archive --format=zip --prefix=SegmentJoinPilot/ --output=SegmentJoinPilot-universal.zip --add-file=LICENSE HEAD:fusion_addin/SegmentJoinPilot -- SegmentJoinPilot.manifest SegmentJoinPilot.py AddInIcon.png AddInIcon.svg commands config.py localization.py version.py
+```
+
+Upload `SegmentJoinPilot-universal.zip` as an asset of a stable GitHub Release. Use a numeric tag such as `v0.7.2` matching the version in `SegmentJoinPilot.manifest`.
